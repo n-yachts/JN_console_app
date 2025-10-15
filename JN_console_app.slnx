@@ -1,0 +1,28 @@
+<Solution>
+  <Project Path="ArPing/ArPing.csproj" Id="600f4890-7ad8-4ed9-9804-dcedb93921ae" />
+  <Project Path="ArpPing/ArpPing.csproj" Id="e111dd9d-30b7-419d-9f9e-951b1647a3ac" />
+  <Project Path="ARPTable/ARPTable.csproj" Id="fa37cbe8-6064-4859-af14-4ce3329dac58" />
+  <Project Path="BandwidthMonitor/BandwidthMonitor.csproj" Id="2dc12ce5-1362-4780-85e1-b1639b68aede" />
+  <Project Path="ChatClient/ChatClient.csproj" Id="c1d3693a-7b11-4273-8ee3-750ce8080bb9" />
+  <Project Path="ChatServer/ChatServer.csproj" Id="225550f4-b40f-4fce-90ef-e75c40fb7f7f" />
+  <Project Path="CustomPing/CustomPing.csproj" Id="a70393d8-f41e-4d39-8939-6409bc3575f6" />
+  <Project Path="CustomTraceroute/CustomTraceroute.csproj" Id="20eff925-400a-4a43-9439-1c5259962e88" />
+  <Project Path="DNSResolver/DNSResolver.csproj" Id="d51d27a7-72ce-4d1b-bb89-35e7aa057687" />
+  <Project Path="HTTPChecker/HTTPChecker.csproj" Id="d1e8fbc4-6459-4603-9606-0a21060e841d" />
+  <Project Path="InterfaceMonitor/InterfaceMonitor.csproj" Id="1b139cdd-c75e-475c-bceb-6f5eed52d9ac" />
+  <Project Path="MACResolver/MACResolver.csproj" Id="7d781e50-a66b-47b0-a0f1-77c5989d2240" />
+  <Project Path="MiniPing/MiniPing.csproj" Id="e7e39caf-fe3c-4eab-b3e0-8073c7bbf2d1" />
+  <Project Path="MulticastListener/MulticastListener.csproj" Id="4b8e94ab-c3bc-4512-945b-63851a6fff91" />
+  <Project Path="NetworkInfo/NetworkInfo.csproj" Id="fbb1205e-e04e-48a9-a2d0-1416408702e9" />
+  <Project Path="PortScanner/PortScanner.csproj" Id="638277f9-2c2c-4e38-b8a9-7da54d80decf" />
+  <Project Path="SimpleDNSServer/SimpleDNSServer.csproj" Id="3aaaf1d1-5fc1-4b87-9686-c0ae7a368e09" />
+  <Project Path="SimpleFTPClient/SimpleFTPClient.csproj" Id="028d1ca9-59d0-4503-a788-cac71db23e59" />
+  <Project Path="SimpleHTTPServer/SimpleHTTPServer.csproj" Id="c6cc534f-eda6-40a4-849e-a58e2d1b3b04" />
+  <Project Path="SimpleSniffer/SimpleSniffer.csproj" Id="f7909d00-388e-4ae5-8177-fb920e6d8aaa" />
+  <Project Path="SSLChecker/SSLChecker.csproj" Id="bb723fcb-009e-47f9-a93a-bd6c133290ce" />
+  <Project Path="SubnetCalculator/SubnetCalculator.csproj" Id="91ab3879-0da3-47c4-ab72-fbabb83873c7" />
+  <Project Path="ThroughputTester/ThroughputTester.csproj" Id="d9846f9e-040d-49e9-ac25-8e584706a3f4" />
+  <Project Path="TraceRoute/TraceRoute.csproj" Id="e103e297-a202-4bcc-a485-6100a6ab4f9e" />
+  <Project Path="WakeOnLAN/WakeOnLAN.csproj" Id="81409d2b-6814-434b-bcb2-679195952a99" />
+  <Project Path="WhoisClient/WhoisClient.csproj" Id="6c6316d3-15ed-496d-93d9-405dbad61962" />
+</Solution>
