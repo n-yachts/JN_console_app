@@ -4,16 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FA37CBE8-6064-4859-AF14-4CE3329DAC58}</ProjectGuid>
+    <ProjectGuid>{225BB841-2B56-4079-9875-0E89583125F9}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ARPTable</RootNamespace>
-    <AssemblyName>ARPTable</AssemblyName>
+    <RootNamespace>TCPConnectionMonitor</RootNamespace>
+    <AssemblyName>TCPConnectionMonitor</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ARPTable.cs" />
+    <Compile Include="TCPConnectionMonitor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

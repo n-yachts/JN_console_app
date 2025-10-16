@@ -4,16 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FA37CBE8-6064-4859-AF14-4CE3329DAC58}</ProjectGuid>
+    <ProjectGuid>{5A70436B-01AF-49C7-9D69-122B0A6FD65E}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ARPTable</RootNamespace>
-    <AssemblyName>ARPTable</AssemblyName>
+    <RootNamespace>SimpleWebCrawler</RootNamespace>
+    <AssemblyName>SimpleWebCrawler</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ARPTable.cs" />
+    <Compile Include="SimpleWebCrawler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

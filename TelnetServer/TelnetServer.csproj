@@ -4,16 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FA37CBE8-6064-4859-AF14-4CE3329DAC58}</ProjectGuid>
+    <ProjectGuid>{6DCB39AB-98B3-44D1-8FD2-EA7DEF535DB3}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ARPTable</RootNamespace>
-    <AssemblyName>ARPTable</AssemblyName>
+    <RootNamespace>TelnetServer</RootNamespace>
+    <AssemblyName>TelnetServer</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ARPTable.cs" />
+    <Compile Include="TelnetServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

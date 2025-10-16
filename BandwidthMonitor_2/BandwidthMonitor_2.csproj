@@ -4,16 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FA37CBE8-6064-4859-AF14-4CE3329DAC58}</ProjectGuid>
+    <ProjectGuid>{488AF69E-6EA4-4AB0-9EF0-F3DCB73CB651}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ARPTable</RootNamespace>
-    <AssemblyName>ARPTable</AssemblyName>
+    <RootNamespace>BandwidthMonitor_2</RootNamespace>
+    <AssemblyName>BandwidthMonitor_2</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ARPTable.cs" />
+    <Compile Include="BandwidthMonitor_2.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
