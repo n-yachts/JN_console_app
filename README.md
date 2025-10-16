@@ -37,7 +37,7 @@ Zobrazuje aktivní TCP spojení na lokálním počítači - lokální/vzdálené
 ### **TopologyMapper**
 Automaticky mapuje síťovou topologii skenováním IP rozsahů a identifikací aktivních zařízení. Vytváří přehled o struktuře sítě.
 
-## **Protokolové klienty a servery**
+## **Protokolový klienti a servery**
 
 ### **ChatClient / ChatServer**
 Jednoduchý chatovací systém pomocí TCP socketů. Server přijímá připojení více klientů a přeposílá zprávy mezi nimi.
