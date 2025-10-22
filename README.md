@@ -7,19 +7,19 @@ Kolekce síťových nástrojů pro diagnostiku, monitoring a správu sítí.
 ### **AdvancedTelnetClient**
 Pokročilý Telnet klient s podporou více protokolů, barevného výstupu a skriptování. Umožňuje připojení k různým síťovým službám (SSH, Telnet, RAW TCP) s pokročilými funkcemi jako logování, automatizace příkazů a podpora různých kódování.
 
-### **ArPing / ArpPing**
+### **ArpPing**
 Odesílá ARP (Address Resolution Protocol) požadavky pro zjištění dostupnosti zařízení v lokální síti. Na rozdíl od ICMP pingu funguje i když je ICMP blokované, protože pracuje na linkové vrstvě.
 
 ### **ARPTable**
 Zobrazuje obsah ARP cache systému - tabulku mapování IP adres na MAC adresy v lokální síti. Užitečné pro diagnostiku síťových konfliktů a analýzu topologie sítě.
 
-### **BandwidthMonitor / BandwidthMonitor_2**
+### **BandwidthMonitor**
 Monitoruje využití síťové šířky pásma v reálném čase. Zobrazuje přenosové rychlosti na jednotlivých síťových rozhraních, celkový přenos a historické statistiky.
 
-### **CustomPing / MiniPing**
+### **AdvancedPing**
 Vlastní implementace ICMP ping nástroje. Odesílá ICMP Echo Request pakety a měří dobu odpovědi, ztrátovost paketů a TTL (Time to Live).
 
-### **CustomTraceroute / TraceRoute**
+### **CustomTraceroute**
 Sleduje cestu paketů od zdroje k cíli přes jednotlivé směrovače. Identifikuje síťové úzkosti a problémy se směrováním.
 
 ### **IPCalculator / SubnetCalculator**
@@ -57,9 +57,6 @@ HTTPChecker testuje dostupnost webových služeb, HeaderAnalyzer detailně analy
 ### **LdapBrowser**
 Prohlížeč LDAP (Lightweight Directory Access Protocol) adresářů - umožňuje procházení a dotazování na directory služby jako Active Directory.
 
-### **ModbusScanner**
-Skenuje a testuje zařízení používající Modbus průmyslový protokol. Detekuje podporované funkce a čte registry.
-
 ### **MulticastListener**
 Připojuje se k multicast skupinám a přijímá multicast datagramy. Užitečné pro testování multicast aplikací a síťového vysílání.
 
@@ -74,9 +71,6 @@ Základní FTP klient pro přenos souborů - podporuje základní FTP operace ja
 
 ### **SimpleHTTPServer**
 Jednoduchý HTTP server schopný obsluhovat webové požadavky a servírovat statický obsah.
-
-### **SimpleMQTTClient**
-Klient pro MQTT (Message Queuing Telemetry Transport) protokol používaný v IoT - připojuje se k brokerům a publikuje/odebírá zprávy.
 
 ### **SimpleSniffer**
 Základní síťový sniffer, který zachytává a analyzuje síťový provoz na zvoleném rozhraní.
