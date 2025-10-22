@@ -7,32 +7,37 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 
+// Hlavní třída Telnet serveru simulujícího síťové zařízení
 class TelnetServer
 {
-    private TcpListener listener;
-    private CancellationTokenSource cancellationTokenSource;
-    private bool isRunning = false;
-    private Dictionary<string, CommandHandler> commands;
-    private ServerConfiguration configuration;
+    private TcpListener listener; // TCP listener pro příchozí spojení
+    private CancellationTokenSource cancellationTokenSource; // Řízení ukončení vláken
+    private bool isRunning = false; // Stav serveru
+    private Dictionary<string, CommandHandler> commands; // Slovník dostupných příkazů
+    private ServerConfiguration configuration; // Konfigurace serveru
 
+    // Konstruktor inicializující příkazy a konfiguraci
     public TelnetServer()
     {
         InitializeCommands();
         configuration = new ServerConfiguration();
     }
 
+    // Hlavní vstupní bod aplikace
     static async Task Main(string[] args)
     {
-        int port = 23;
+        int port = 23; // Výchozí telnet port
+        // Zpracování argumentů příkazové řádky pro vlastní port
         if (args.Length > 0 && int.TryParse(args[0], out int customPort))
         {
             port = customPort;
         }
 
         var server = new TelnetServer();
-        await server.StartAsync(port);
+        await server.StartAsync(port); // Spuštění serveru
     }
 
+    // Inicializace slovníku podporovaných příkazů
     private void InitializeCommands()
     {
         commands = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase)
@@ -51,13 +56,14 @@ class TelnetServer
         };
     }
 
+    // Hlavní metoda pro spuštění serveru
     public async Task StartAsync(int port = 23)
     {
         if (isRunning)
             return;
 
         cancellationTokenSource = new CancellationTokenSource();
-        listener = new TcpListener(IPAddress.Any, port);
+        listener = new TcpListener(IPAddress.Any, port); // Naslouchá na všech rozhraních
 
         try
         {
@@ -68,15 +74,15 @@ class TelnetServer
             Console.WriteLine("Stiskněte Ctrl+C pro ukončení serveru");
             Console.WriteLine("Dostupné příkazy: " + string.Join(", ", commands.Keys));
 
-            // Registrace Ctrl+C handleru
+            // Registrace obsluhy události Ctrl+C
             Console.CancelKeyPress += (sender, e) =>
             {
-                e.Cancel = true;
+                e.Cancel = true; // Zabránit okamžitému ukončení
                 Console.WriteLine("\nUkončování serveru...");
                 cancellationTokenSource.Cancel();
             };
 
-            await AcceptClientsAsync();
+            await AcceptClientsAsync(); // Spuštění přijímání klientů
         }
         catch (Exception ex)
         {
@@ -84,22 +90,23 @@ class TelnetServer
         }
         finally
         {
-            Stop();
+            Stop(); // Zajištění úklidu prostředků
         }
     }
 
+    // Smyčka pro přijímání nových klientů
     private async Task AcceptClientsAsync()
     {
         while (!cancellationTokenSource.Token.IsCancellationRequested)
         {
             try
             {
-                var client = await listener.AcceptTcpClientAsync();
-                _ = Task.Run(() => HandleClientAsync(client, cancellationTokenSource.Token));
+                var client = await listener.AcceptTcpClientAsync(); // Čekání na klienta
+                _ = Task.Run(() => HandleClientAsync(client, cancellationTokenSource.Token)); // Spuštění vlákna pro klienta
             }
             catch (ObjectDisposedException)
             {
-                // Listener byl ukončen
+                // Listener byl ukončen během čekání
                 break;
             }
             catch (Exception ex)
@@ -109,6 +116,7 @@ class TelnetServer
         }
     }
 
+    // Obsluha jednotlivého klienta
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
         var clientEndPoint = client.Client.RemoteEndPoint;
@@ -117,6 +125,7 @@ class TelnetServer
         using (client)
         using (var stream = client.GetStream())
         {
+            // Vytvoření relace pro sledování stavu klienta
             var session = new ClientSession
             {
                 Client = client,
@@ -128,23 +137,23 @@ class TelnetServer
 
             try
             {
-                await SendWelcomeMessage(session);
+                await SendWelcomeMessage(session); // Odeslání úvodní zprávy
 
-                byte[] buffer = new byte[1024];
-                StringBuilder inputBuffer = new StringBuilder();
+                byte[] buffer = new byte[1024]; // Buffer pro příchozí data
+                StringBuilder inputBuffer = new StringBuilder(); // Buffer pro stavbu příkazů
 
                 while (!cancellationToken.IsCancellationRequested && client.Connected)
                 {
                     if (stream.DataAvailable)
                     {
                         int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                        if (bytesRead == 0)
+                        if (bytesRead == 0) // Klient se odpojil
                             break;
 
                         string receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                         inputBuffer.Append(receivedData);
 
-                        // Zpracování příkazů po řádcích
+                        // Zpracování po přijetí nového řádku
                         if (receivedData.Contains("\n") || receivedData.Contains("\r"))
                         {
                             string input = inputBuffer.ToString().Trim();
@@ -156,13 +165,12 @@ class TelnetServer
                                 await SendResponse(session, response);
                             }
 
-                            // Zobrazení promptu
-                            await SendPrompt(session);
+                            await SendPrompt(session); // Zobrazení nového promptu
                         }
                     }
                     else
                     {
-                        await Task.Delay(10, cancellationToken);
+                        await Task.Delay(10, cancellationToken); // Krátký spánek pro uvolnění CPU
                     }
                 }
             }
@@ -175,6 +183,7 @@ class TelnetServer
         Console.WriteLine($"Klient odpojen: {clientEndPoint}");
     }
 
+    // Odeslání uvítací zprávy novému klientovi
     private async Task SendWelcomeMessage(ClientSession session)
     {
         string welcomeMessage = $@"
@@ -186,6 +195,7 @@ Type 'help' or '?' for available commands
         await SendPrompt(session);
     }
 
+    // Sestavení a odeslání promptu podle aktuálního módu
     private async Task SendPrompt(ClientSession session)
     {
         string prompt = session.IsConfigMode ? "(config)# "
@@ -196,6 +206,7 @@ Type 'help' or '?' for available commands
         await SendResponse(session, fullPrompt);
     }
 
+    // Zpracování příkazu od klienta
     private async Task<string> ProcessCommand(string input, ClientSession session)
     {
         string command = input.Trim();
@@ -205,7 +216,7 @@ Type 'help' or '?' for available commands
             return await commands[command].Execute(session, configuration, command);
         }
 
-        // Hledání podobných příkazů
+        // Hledání podobných příkazů pro lepší UX
         var similarCommands = commands.Keys.Where(c => c.StartsWith(command, StringComparison.OrdinalIgnoreCase)).ToList();
         if (similarCommands.Any())
         {
@@ -215,6 +226,7 @@ Type 'help' or '?' for available commands
         return $"Neznámý příkaz: '{command}'. Napište 'help' pro nápovědu.";
     }
 
+    // Odeslání odpovědi klientovi
     private async Task SendResponse(ClientSession session, string response)
     {
         byte[] data = Encoding.UTF8.GetBytes(response + "\r\n");
@@ -222,6 +234,7 @@ Type 'help' or '?' for available commands
         await session.Stream.FlushAsync();
     }
 
+    // Ukončení činnosti serveru
     public void Stop()
     {
         isRunning = false;
@@ -230,7 +243,7 @@ Type 'help' or '?' for available commands
         Console.WriteLine("Telnet Server byl ukončen.");
     }
 
-    // Command Handlers
+    // Příkaz: Zobrazení konfigurace
     private string ShowRunningConfig(ClientSession session, ServerConfiguration config, string command)
     {
         if (!session.IsPrivilegedMode)
@@ -241,16 +254,18 @@ Current configuration:
 {config.GetConfigurationText(session.Hostname)}";
     }
 
+    // Příkaz: Zobrazení verze
     private string ShowVersion(ClientSession session, ServerConfiguration config, string command)
     {
         return $@"
-Network Device Simulator Version 1.0
-Firmware: Cisco IOS Software, Version 15.1(4)M12
-Compiled: 2024-01-15
+Network JN Device Simulator Version 1.0
+Firmware: Cisco IOS Software, Herrysion 9 3/4 (version)
+Compiled: 2025-10-20
 Memory: 256MB
 ";
     }
 
+    // Příkaz: Zobrazení rozhraní
     private string ShowInterfaces(ClientSession session, ServerConfiguration config, string command)
     {
         return $@"
@@ -262,6 +277,7 @@ Vlan1                      up            up
 ";
     }
 
+    // Příkaz: Zobrazení ARP tabulky
     private string ShowArpTable(ClientSession session, ServerConfiguration config, string command)
     {
         if (!session.IsPrivilegedMode)
@@ -275,6 +291,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
 ";
     }
 
+    // Příkaz: Přepnutí do privilegovaného módu
     private string EnableMode(ClientSession session, ServerConfiguration config, string command)
     {
         if (session.IsPrivilegedMode)
@@ -284,6 +301,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
         return "";
     }
 
+    // Příkaz: Přepnutí do uživatelského módu
     private string DisableMode(ClientSession session, ServerConfiguration config, string command)
     {
         session.IsPrivilegedMode = false;
@@ -291,6 +309,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
         return "";
     }
 
+    // Příkaz: Přepnutí do konfiguračního módu
     private string ConfigureTerminal(ClientSession session, ServerConfiguration config, string command)
     {
         if (!session.IsPrivilegedMode)
@@ -300,6 +319,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
         return "Enter configuration commands, one per line. End with CNTL/Z.";
     }
 
+    // Příkaz: Nastavení hostname
     private string SetHostname(ClientSession session, ServerConfiguration config, string command)
     {
         if (!session.IsConfigMode)
@@ -314,6 +334,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
         return $"{oldHostname} přejmenováno na {newHostname}";
     }
 
+    // Příkaz: Opuštění aktuálního módu
     private string ExitMode(ClientSession session, ServerConfiguration config, string command)
     {
         if (session.IsConfigMode)
@@ -330,6 +351,7 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
         return "exit";
     }
 
+    // Příkaz: Zobrazení nápovědy
     private string ShowHelp(ClientSession session, ServerConfiguration config, string command)
     {
         var helpText = new StringBuilder();
@@ -344,11 +366,11 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
     }
 }
 
-// Podpůrné třídy
+// Třída pro reprezentaci příkazu
 public class CommandHandler
 {
-    public string Description { get; }
-    private Func<ClientSession, ServerConfiguration, string, string> handler;
+    public string Description { get; } // Popis příkazu pro nápovědu
+    private Func<ClientSession, ServerConfiguration, string, string> handler; // Funkce pro provedení příkazu
 
     public CommandHandler(string description, Func<ClientSession, ServerConfiguration, string, string> handler)
     {
@@ -362,19 +384,22 @@ public class CommandHandler
     }
 }
 
+// Třída pro sledování stavu relace klienta
 public class ClientSession
 {
-    public TcpClient Client { get; set; }
-    public NetworkStream Stream { get; set; }
-    public bool IsPrivilegedMode { get; set; }
-    public bool IsConfigMode { get; set; }
-    public string Hostname { get; set; }
+    public TcpClient Client { get; set; } // TCP klient
+    public NetworkStream Stream { get; set; } // Síťový stream
+    public bool IsPrivilegedMode { get; set; } // Stav privilegovaného módu
+    public bool IsConfigMode { get; set; } // Stav konfiguračního módu
+    public string Hostname { get; set; } // Aktuální hostname
 }
 
+// Třída pro konfiguraci serveru
 public class ServerConfiguration
 {
-    public string DefaultHostname { get; } = "Router";
+    public string DefaultHostname { get; } = "Router"; // Výchozí hostname
 
+    // Generování ukázkové konfigurace
     public string GetConfigurationText(string currentHostname)
     {
         return $@"
@@ -400,3 +425,12 @@ end
 ";
     }
 }
+
+/*
+Telnet server simulující síťové zařízení (router/switch)
+Podpora různých uživatelských módů (uživatelský, privilegovaný, konfigurační)
+Příkazy inspirované Cisco IOS (show running-config, enable, configure terminal, atd.)
+Kompletní zpracování TCP spojení s více klienty
+Ošetření výjimek a korektní ukončování
+Rozšiřitelná architektura pro přidávání nových příkazů
+*/

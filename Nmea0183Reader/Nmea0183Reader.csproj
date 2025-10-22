@@ -4,11 +4,12 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6B7163FC-66B1-4417-A5B9-EE144893DEBD}</ProjectGuid>
+    <ProjectGuid>{B4B081D0-354C-4737-9E3C-9D4717F93E97}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>SimpleMQTTClient</RootNamespace>
-    <AssemblyName>SimpleMQTTClient</AssemblyName>
+    <RootNamespace>Nmea0183Reader</RootNamespace>
+    <AssemblyName>Nmea0183Reader</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
@@ -43,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SimpleMQTTClient.cs" />
+    <Compile Include="Nmea0183Reader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

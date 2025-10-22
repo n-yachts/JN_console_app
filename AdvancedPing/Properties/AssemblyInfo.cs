@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // Obecné informace o sestavení se řídí přes následující 
 // sadu atributů. Změnou hodnot těchto atributů se upraví informace
 // přidružené k sestavení.
-[assembly: AssemblyTitle("BandwidthMonitor_2")]
+[assembly: AssemblyTitle("AdvancedPing")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("BandwidthMonitor_2")]
+[assembly: AssemblyProduct("AdvancedPing")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // Následující GUID se používá pro ID knihovny typů, pokud je tento projekt vystavený pro COM.
-[assembly: Guid("488af69e-6ea4-4ab0-9ef0-f3dcb73cb651")]
+[assembly: Guid("525d4466-ae75-4b68-8429-1e936570d4be")]
 
 // Informace o verzi sestavení se skládá z těchto čtyř hodnot:
 //

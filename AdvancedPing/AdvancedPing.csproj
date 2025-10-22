@@ -4,11 +4,12 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{E1EDFB86-4FD4-45E0-BFD6-B379C99EC4A9}</ProjectGuid>
+    <ProjectGuid>{525D4466-AE75-4B68-8429-1E936570D4BE}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>BlockchainMonitor</RootNamespace>
-    <AssemblyName>BlockchainMonitor</AssemblyName>
+    <RootNamespace>AdvancedPing</RootNamespace>
+    <AssemblyName>AdvancedPing</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
@@ -43,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BlockchainMonitor.cs" />
+    <Compile Include="AdvancedPing.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

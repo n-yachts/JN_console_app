@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // Obecné informace o sestavení se řídí přes následující 
 // sadu atributů. Změnou hodnot těchto atributů se upraví informace
 // přidružené k sestavení.
-[assembly: AssemblyTitle("MiniPing")]
+[assembly: AssemblyTitle("Nmea0183Reader")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("MiniPing")]
+[assembly: AssemblyProduct("Nmea0183Reader")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // Následující GUID se používá pro ID knihovny typů, pokud je tento projekt vystavený pro COM.
-[assembly: Guid("e7e39caf-fe3c-4eab-b3e0-8073c7bbf2d1")]
+[assembly: Guid("b4b081d0-354c-4737-9e3c-9d4717f93e97")]
 
 // Informace o verzi sestavení se skládá z těchto čtyř hodnot:
 //

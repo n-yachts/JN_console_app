@@ -4,15 +4,15 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{E7E39CAF-FE3C-4EAB-B3E0-8073C7BBF2D1}</ProjectGuid>
+    <ProjectGuid>{83F80DA0-20F9-4FE6-8D4B-F18A91017E94}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>MiniPing</RootNamespace>
-    <AssemblyName>MiniPing</AssemblyName>
+    <RootNamespace>Nmea2000Reader</RootNamespace>
+    <AssemblyName>Nmea2000Reader</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+	<LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -44,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MiniPing.cs" />
+    <Compile Include="Nmea2000Reader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

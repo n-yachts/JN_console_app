@@ -52,11 +52,8 @@ class NetworkDocumenter  // Hlavní třída pro dokumentování sítě
     {
         Console.WriteLine("2. SMĚROVACÍ TABULKA:");  // Nadpis sekce
 
-        // Získání globálních síťových vlastností
-        IPGlobalProperties properties = IPGlobalProperties.GetIPGlobalProperties();
-
         // Získání aktivních TCP spojení (použito pro kontext)
-        var gateways = properties.GetIPGlobalProperties().GetActiveTcpConnections();
+        var gateways = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections();
 
         // Zjednodušené zobrazení výchozích bran
         NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();

@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // Obecné informace o sestavení se řídí přes následující 
 // sadu atributů. Změnou hodnot těchto atributů se upraví informace
 // přidružené k sestavení.
-[assembly: AssemblyTitle("CustomPing")]
+[assembly: AssemblyTitle("Nmea2000Reader")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("CustomPing")]
+[assembly: AssemblyProduct("Nmea2000Reader")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // Následující GUID se používá pro ID knihovny typů, pokud je tento projekt vystavený pro COM.
-[assembly: Guid("a70393d8-f41e-4d39-8939-6409bc3575f6")]
+[assembly: Guid("83f80da0-20f9-4fe6-8d4b-f18a91017e94")]
 
 // Informace o verzi sestavení se skládá z těchto čtyř hodnot:
 //
