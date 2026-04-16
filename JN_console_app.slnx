@@ -12,6 +12,7 @@
   <Project Path="DNSBlackhole/DNSBlackhole.csproj" Id="f137afca-1f55-47a7-aa8e-b209824b85c9" />
   <Project Path="DNSResolver/DNSResolver.csproj" Id="d51d27a7-72ce-4d1b-bb89-35e7aa057687" />
   <Project Path="HeaderAnalyzer/HeaderAnalyzer.csproj" Id="357c58fd-ef8d-4dfa-8197-8049ca729ebd" />
+  <Project Path="HostName/HostName.csproj" Id="cf19a8f8-23f0-410c-b0b7-7c73f1ee54d0" />
   <Project Path="HTTPChecker/HTTPChecker.csproj" Id="d1e8fbc4-6459-4603-9606-0a21060e841d" />
   <Project Path="InterfaceMonitor/InterfaceMonitor.csproj" Id="1b139cdd-c75e-475c-bceb-6f5eed52d9ac" />
   <Project Path="IPCalculator/IPCalculator.csproj" Id="244244ec-42ce-47aa-ad05-4a8e62370fb1" />
@@ -20,6 +21,7 @@
   <Project Path="MACResolver/MACResolver.csproj" Id="7d781e50-a66b-47b0-a0f1-77c5989d2240" />
   <Project Path="ModbusScanner/ModbusScanner.csproj" Id="8f97edea-cb9b-46d0-8d39-183d69ad303a" />
   <Project Path="MulticastListener/MulticastListener.csproj" Id="4b8e94ab-c3bc-4512-945b-63851a6fff91" />
+  <Project Path="NetBIOSNameResolver/NetBIOSNameResolver.csproj" Id="a9a4b516-a356-4e39-be48-b5755b61dbe1" />
   <Project Path="NetworkDocumenter/NetworkDocumenter.csproj" Id="28e85ccc-fe05-4ae1-b6d1-806dd4fb75e0" />
   <Project Path="NetworkInfo/NetworkInfo.csproj" Id="fbb1205e-e04e-48a9-a2d0-1416408702e9" />
   <Project Path="Nmea0183Reader/Nmea0183Reader.csproj" Id="b4b081d0-354c-4737-9e3c-9d4717f93e97" />
