@@ -31,6 +31,13 @@ class RadiusClient
                 IPEndPoint radiusEndpoint = new IPEndPoint(IPAddress.Parse(server), 1812);
 
                 // Sestavení RADIUS požadavku
+                // Délky atributů jsou v RADIUS jednobajtové: hodnota max. 253 B, heslo max. 128 B
+                if (Encoding.UTF8.GetByteCount(username) > 253 || Encoding.UTF8.GetByteCount(password) > 128)
+                {
+                    Console.WriteLine("Jméno může mít max. 253 bajtů a heslo max. 128 bajtů.");
+                    return;
+                }
+
                 byte[] requestPacket = CreateRadiusRequest(secret, username, password);
 
                 Console.WriteLine($"Odesílám RADIUS request pro uživatele '{username}'");
@@ -44,7 +51,7 @@ class RadiusClient
                 byte[] responseData = client.Receive(ref responseEndpoint);
 
                 // Zpracování odpovědi
-                ParseRadiusResponse(responseData, secret);
+                ParseRadiusResponse(responseData, secret, requestPacket);
             }
         }
         catch (Exception ex)
@@ -138,9 +145,36 @@ class RadiusClient
         return encrypted;
     }
 
-    static void ParseRadiusResponse(byte[] data, string secret)
+    static void ParseRadiusResponse(byte[] data, string secret, byte[] request)
     {
         if (data.Length < 20) return; // Základní kontrola velikosti odpovědi
+
+        // Odpověď musí mít stejný Identifier jako požadavek
+        if (data[1] != request[1])
+        {
+            Console.WriteLine("Odpověď má jiný Identifier než požadavek - ignoruji.");
+            return;
+        }
+
+        // Ověření Response Authenticator (RFC 2865): MD5(Code+ID+Length+RequestAuth+Attributes+Secret)
+        int responseLength = Math.Min((data[2] << 8) | data[3], data.Length);
+        byte[] secretBytes = Encoding.UTF8.GetBytes(secret);
+        byte[] toHash = new byte[responseLength + secretBytes.Length];
+        Array.Copy(data, 0, toHash, 0, 4);                // Code, ID, Length
+        Array.Copy(request, 4, toHash, 4, 16);            // Request Authenticator
+        Array.Copy(data, 20, toHash, 20, responseLength - 20);  // Atributy
+        Array.Copy(secretBytes, 0, toHash, responseLength, secretBytes.Length);
+        byte[] expected;
+        using (MD5 md5 = MD5.Create())
+            expected = md5.ComputeHash(toHash);
+        for (int i = 0; i < 16; i++)
+        {
+            if (data[4 + i] != expected[i])
+            {
+                Console.WriteLine("Neplatný Response Authenticator (špatný secret nebo podvržená odpověď).");
+                return;
+            }
+        }
 
         // Interpretace kódu odpovědi
         byte code = data[0];
@@ -181,13 +215,14 @@ Atributy:
  User-Password (2): Zašifrované heslo
  NAS-Identifier (32): Identifikace RADIUS klienta
 Zpracování odpovědi:
- Analyzuje se první bajt pro typ odpovědi
+ Nejdřív se ověří Identifier a Response Authenticator (MD5 z kódu, ID, délky, Request Authenticatoru, atributů a secretu)
+ Poté se podle prvního bajtu určí typ odpovědi
  Access-Accept (2): Úspěšná autentizace
  Access-Reject (3): Neúspěšná autentizace
 
 Tento kód implementuje základní RADIUS klient podle RFC 2865, ale pro produkční použití by bylo vhodné přidat:
- Ověření Response Authenticator
- Podporu více atributů
+ Kontrolu Message-Authenticator (RFC 3579) a podporu EAP
+ Podporu více atributů a stavu Access-Challenge
  Lepší manipulaci s chybami
  Zabezpečení proti replay útokům
 */

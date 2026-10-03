@@ -68,14 +68,17 @@ class SnmpWalker
                     await client.SendAsync(request, request.Length, endpoint);
 
                     // Přijetí odpovědi
-                    UdpReceiveResult response = await client.ReceiveAsync();
-                    byte[] responseData = response.Buffer;
+                    // (ReceiveTimeout se na asynchronní ReceiveAsync neuplatňuje, timeout řešíme ručně)
+                    Task<UdpReceiveResult> receiveTask = client.ReceiveAsync();
+                    if (await Task.WhenAny(receiveTask, Task.Delay(timeout)) != receiveTask)
+                        throw new TimeoutException();
+                    byte[] responseData = receiveTask.Result.Buffer;
 
                     // Zpracování odpovědi a získání dalšího OID
                     string nextOID = ParseGetNextResponse(responseData, out string value);
 
                     // Kontrola konce stromu (OID již nepatří do požadované větve)
-                    if (nextOID == null || !nextOID.StartsWith(startOID))
+                    if (nextOID == null || (nextOID != startOID && !nextOID.StartsWith(startOID + ".")))
                         break;
 
                     // Detekce cyklu (ochrana proti nekonečné smyčce)
@@ -151,7 +154,8 @@ class SnmpWalker
         byte[] varbind = CreateVarbind(oid);
 
         // Výpočet délky PDU
-        int pduLength = requestId.Length + errorStatus.Length + errorIndex.Length + varbind.Length;
+        // (+2 bajty za hlavičku SEQUENCE seznamu vazeb)
+        int pduLength = requestId.Length + errorStatus.Length + errorIndex.Length + 2 + varbind.Length;
 
         // Sestavení PDU
         pdu.Add(0xA1);  // GetNextRequest PDU typ
@@ -160,7 +164,7 @@ class SnmpWalker
         pdu.AddRange(errorStatus);
         pdu.AddRange(errorIndex);
         pdu.Add(0x30);  // SEQUENCE pro seznam vazeb
-        pdu.Add((byte)(varbind.Length - 2));  // Délka bez vnější sekvence
+        pdu.Add((byte)varbind.Length);  // Délka obsahu (jedna vazba včetně své hlavičky)
         pdu.AddRange(varbind);
 
         return pdu.ToArray();
@@ -231,9 +235,25 @@ class SnmpWalker
     }
 
 
+    // Přečte BER hlavičku (tag + délka, včetně dlouhé formy) a posune index na začátek obsahu
+    static int ReadTlv(byte[] data, ref int index, out byte tag)
+    {
+        tag = data[index++];
+        int len = data[index++];
+        if ((len & 0x80) != 0)
+        {
+            int count = len & 0x7F;
+            len = 0;
+            for (int i = 0; i < count; i++)
+                len = (len << 8) | data[index++];
+        }
+        if (len < 0 || index + len > data.Length)
+            throw new FormatException("Neplatná délka v SNMP odpovědi");
+        return len;
+    }
+
     static string ParseGetNextResponse(byte[] data, out string value)
     {
-        // Inicializace výstupních hodnot
         value = null;
         string oid = null;
 
@@ -241,105 +261,75 @@ class SnmpWalker
         {
             int index = 0;
 
-            // Kontrola hlavní sekvence
-            if (data[index++] == 0x30)
+            // Vnější SEQUENCE
+            ReadTlv(data, ref index, out byte tag);
+            if (tag != 0x30) return null;
+
+            // Verze a komunita (přeskočit)
+            for (int i = 0; i < 2; i++)
             {
-                index++; // Přeskočení délky hlavní sekvence
+                int len = ReadTlv(data, ref index, out _);
+                index += len;
+            }
 
-                // Hledání GetResponse PDU (typ 0xA2)
-                while (index < data.Length && data[index] != 0xA2) index++;
+            // PDU (GetResponse = 0xA2)
+            ReadTlv(data, ref index, out tag);
+            if (tag != 0xA2) return null;
 
-                if (index < data.Length && data[index] == 0xA2)
-                {
-                    index++;
-                    index++; // Přeskočení délky PDU
+            // Request ID, error status, error index
+            int errorStatus = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                int len = ReadTlv(data, ref index, out _);
+                if (i == 1) errorStatus = int.Parse(ParseIntegerValue(data, index, len));
+                index += len;
+            }
+            if (errorStatus != 0) return null;
 
-                    // Přeskočení Request ID, Error Status, Error Index
-                    for (int i = 0; i < 3; i++)
-                    {
-                        index++; // Přeskočení typu
-                        int len = data[index++]; // Načtení délky
-                        index += len; // Přeskočení hodnoty
-                    }
+            // Seznam vazeb a první vazba
+            ReadTlv(data, ref index, out tag);
+            if (tag != 0x30) return null;
+            ReadTlv(data, ref index, out tag);
+            if (tag != 0x30) return null;
 
-                    // Zpracování variable bindings
-                    if (index < data.Length && data[index] == 0x30)
-                    {
-                        index++;
-                        index++; // Přeskočení délky sekvence vazeb
+            // OID
+            int oidLen = ReadTlv(data, ref index, out tag);
+            if (tag != 0x06) return null;
+            oid = DecodeOid(data, index, oidLen);
+            index += oidLen;
 
-                        // Zpracování první vazby
-                        if (index < data.Length && data[index] == 0x30)
-                        {
-                            index++;
-                            index++; // Přeskočení délky vazby
-
-                            // Čtení OID
-                            if (index < data.Length && data[index] == 0x06)
-                            {
-                                index++;
-                                int oidLen = data[index++];
-                                oid = DecodeOid(data, index, oidLen);
-                                index += oidLen;
-
-                                // Čtení hodnoty
-                                if (index < data.Length)
-                                {
-                                    byte valueType = data[index++];
-                                    int valueLen = data[index++];
-
-                                    // Zpracování podle typu hodnoty
-                                    if (valueType == 0x04) // OCTET STRING
-                                    {
-                                        value = Encoding.ASCII.GetString(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else if (valueType == 0x02) // INTEGER
-                                    {
-                                        value = ParseIntegerValue(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else if (valueType == 0x06) // OBJECT IDENTIFIER
-                                    {
-                                        value = DecodeOid(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else if (valueType == 0x05) // NULL
-                                    {
-                                        value = "null";
-                                        // NULL nemá data, takže neposouváme index
-                                    }
-                                    else if (valueType == 0x41) // Counter32
-                                    {
-                                        value = ParseIntegerValue(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else if (valueType == 0x42) // Gauge32
-                                    {
-                                        value = ParseIntegerValue(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else if (valueType == 0x43) // TimeTicks
-                                    {
-                                        value = ParseIntegerValue(data, index, valueLen);
-                                        index += valueLen;
-                                    }
-                                    else
-                                    {
-                                        // Neznámý typ - výpis hexa hodnoty
-                                        value = $"[Type: 0x{valueType:X2}]";
-                                        index += valueLen;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            // Hodnota
+            int valueLen = ReadTlv(data, ref index, out byte valueType);
+            switch (valueType)
+            {
+                case 0x04:
+                    value = Encoding.ASCII.GetString(data, index, valueLen);
+                    break;
+                case 0x02:  // INTEGER
+                case 0x41:  // Counter32
+                case 0x42:  // Gauge32
+                case 0x43:  // TimeTicks
+                case 0x46:  // Counter64
+                    value = ParseIntegerValue(data, index, valueLen);
+                    break;
+                case 0x06:
+                    value = DecodeOid(data, index, valueLen);
+                    break;
+                case 0x05:
+                    value = "null";
+                    break;
+                case 0x81:  // noSuchInstance
+                case 0x82:  // endOfMibView
+                    return null;  // Konec stromu
+                default:
+                    value = $"[Type: 0x{valueType:X2}]";
+                    break;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Chyba při parsování: {ex.Message}");
+            return null;
         }
 
         return oid;
@@ -410,9 +400,9 @@ class SnmpWalker
 Asynchronní operace - využívá async/await pro neblokující síťovou komunikaci
 SNMPv2c protokol - implementuje GetNextRequest operace
 Průchod MIB stromem - pomocí iterativních GetNext požadavků
-Základní error handling - timeout a detekce chyb
+Základní error handling - timeout (řešený ručně přes Task.WhenAny, protože ReceiveAsync ignoruje ReceiveTimeout) a detekce chyb
 Podpora základních datových typů - OID, řetězce, čísla
-Kódování BER - pro SNMP zprávy
+Kódování BER (TLV: typ, délka, hodnota) - pro SNMP zprávy; délky nad 127 bajtů používají dlouhou formu
 
 OID (Object Identifier) - Objektový identifikátor
 OID je hierarchický systém jednoznačného označování objektů v různých systémech,

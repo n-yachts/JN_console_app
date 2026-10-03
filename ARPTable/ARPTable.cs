@@ -1,20 +1,21 @@
 ﻿using System;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Runtime.InteropServices;
-using System.ComponentModel;
+using System.Net;  // IPAddress pro převod IP adresy
+using System.Net.NetworkInformation;  // NetworkInterface pro zjištění názvu rozhraní podle indexu
+using System.Runtime.InteropServices;  // DllImport, Marshal, StructLayout - volání nativního Win32 API
+using System.ComponentModel;  // Win32Exception - převod chybového kódu Windows na zprávu
 
-class ARPTable
+class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému Windows
 {
     // Import Win32 API funkce pro získání ARP tabulky
     [DllImport("iphlpapi.dll", SetLastError = true)]
     static extern uint GetIpNetTable(IntPtr pIpNetTable, ref uint pdwSize, bool bOrder);
 
-    // Import Win32 API funkce pro uvolnění paměti
+    // Import Win32 API funkce FreeMibTable (v této ukázce se nepoužívá, paměť se uvolňuje přes Marshal.FreeCoTaskMem)
     [DllImport("iphlpapi.dll")]
     static extern uint FreeMibTable(IntPtr plpNetTable);
 
     // Konstanty pro typy záznamů v ARP tabulce
+    // (další hodnoty: 1 = other, 2 = invalid)
     const int MIB_IPNET_TYPE_DYNAMIC = 3;  // Dynamický záznam
     const int MIB_IPNET_TYPE_STATIC = 4;   // Statický záznam
 
@@ -26,11 +27,11 @@ class ARPTable
         public uint dwPhysAddrLen;  // Délka MAC adresy
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
         public byte[] bPhysAddr;    // Pole pro MAC adresu (max 8 bytů)
-        public uint dwAddr;         // IP adresa (ve formátu uint)
+        public uint dwAddr;         // IPv4 adresa uložená jako uint (bajty v pořadí, v jakém jsou v adrese)
         public uint dwType;         // Typ záznamu (dynamic/static)
     }
 
-    // Hlavní struktura ARP tabulky
+    // Hlavní struktura ARP tabulky (v kódu se nepoužívá, počet záznamů se čte přímo z paměti a záznamy se načítají postupně)
     [StructLayout(LayoutKind.Sequential)]
     struct MIB_IPNETTABLE
     {
@@ -183,5 +184,5 @@ MAC adresu
 Typ záznamu (statický/dynamický)
 Název síťového rozhraní
 
-Program obsahuje kompletní ošetření chyb a korektní práci s pamětí.
+Chyby Win32 API se převádějí na Win32Exception a alokovaná paměť se uvolňuje v bloku finally.
 */

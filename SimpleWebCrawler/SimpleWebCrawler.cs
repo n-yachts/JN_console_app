@@ -23,12 +23,36 @@ class SimpleWebCrawler
         }
 
         string startUrl = args[0];  // Získání startovní URL z prvního argumentu
-        await Crawl(startUrl);      // Spuštění procházení (asynchronně)
+
+        if (!Uri.TryCreate(startUrl, UriKind.Absolute, out Uri startUri) ||
+            (startUri.Scheme != Uri.UriSchemeHttp && startUri.Scheme != Uri.UriSchemeHttps))
+        {
+            Console.WriteLine("Neplatná URL. Zadejte absolutní adresu, např. https://example.com");
+            return;
+        }
+
+        startHost = startUri.Host;  // Procházení se omezí na doménu startovní stránky
+        await Crawl(startUrl, 0);   // Spuštění procházení (asynchronně)
     }
 
+    // Omezení procházení: pouze startovní doména, maximální hloubka a počet stránek
+    static string startHost;
+    const int MaxDepth = 3;
+    const int MaxPages = 50;
+
     // Hlavní rekurzivní metoda pro procházení webu
-    static async Task Crawl(string url)
+    static async Task Crawl(string url, int depth)
     {
+        // Kontrola limitů a cizí domény
+        if (depth > MaxDepth || visitedUrls.Count >= MaxPages)
+            return;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri) ||
+            !uri.Host.Equals(startHost, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // Normalizace (bez #fragmentu), aby se tatáž stránka nenavštívila vícekrát
+        url = uri.GetLeftPart(UriPartial.Query);
+
         // Kontrola, zda jsme již URL navštívili - pokud ano, ukončí metodu
         if (visitedUrls.Contains(url))
             return;
@@ -47,7 +71,7 @@ class SimpleWebCrawler
             // Rekurzivní procházení všech nalezených odkazů
             foreach (string link in links)
             {
-                await Crawl(link); // Asynchronní volání sebe sama pro každý odkaz
+                await Crawl(link, depth + 1); // Asynchronní volání sebe sama pro každý odkaz
             }
         }
         catch (Exception ex) // Zachycení výjimek (např. chyba sítě, neplatná URL)
@@ -78,18 +102,18 @@ class SimpleWebCrawler
             string link = match.Groups[1].Value;
 
             // Zpracování absolutní URL (začíná na http/https)
-            if (link.StartsWith("http"))
+            if (link.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                link.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 links.Add(link); // Přidání přímo do seznamu
             }
-            // Zpracování relativní URL (začíná lomítkem)
-            else if (link.StartsWith("/"))
+            // Zpracování relativních URL ("/cesta", "stranka.html", "../x"); kotvy a schémata (mailto:, javascript:) se přeskočí
+            else if (link.Length > 0 && !link.StartsWith("#") && !link.Contains(":"))
             {
                 // Vytvoření absolutní URL kombinací základní URL a relativní cesty
                 Uri baseUri = new Uri(baseUrl);
                 links.Add(new Uri(baseUri, link).AbsoluteUri);
             }
-            // Poznámka: Tento kód ignoruje jiné typy relativních cest (např. "./" nebo "../")
         }
 
         return links; // Návrat seznamu absolutních URL
@@ -97,15 +121,13 @@ class SimpleWebCrawler
 }
 
 /*
-Tento crawler nemá žádné omezení rychlosti ani domény
+Crawler je omezen na startovní doménu (max. hloubka 3, max. 50 stránek), ale nemá omezení rychlosti
 Může způsobit vysokou zátěž serverům
 Nerespektuje robots.txt
-Může se zacyklit v nekonečné rekurzi
+Navštívené URL se evidují (bez #fragmentu), takže se nezacyklí
 Pro produkční použití je nutné přidat:
 Omezení počtu požadavků za sekundu
 Respektování robots.txt
-Omezení na konkrétní doménu
-Ošetření dalších typů relativních cest
 Ukládání stavu pro případné přerušení
 
 robots.txt je soubor v kořenovém adresáři webového serveru, který obsahuje pokyny pro webové crawlerry (vyhledávací roboty) o tom,

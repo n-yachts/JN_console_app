@@ -40,6 +40,9 @@ class TelnetClient  // Hlavní třída telnet klienta
             stream = client.GetStream();  // Získání síťového streamu z připojeného klienta
             isConnected = true;  // Nastavení příznaku připojení na true
 
+            // Ctrl+C se bude číst jako běžná klávesa, aby šlo spojení korektně ukončit (viz ReadLineWithCancel)
+            Console.TreatControlCAsInput = true;
+
             Console.WriteLine($"Připojeno k {hostname}:{port}");  // Potvrzení úspěšného připojení
             Console.WriteLine("Pro ukončení napište 'QUIT' nebo stiskněte Ctrl+C\n");  // Nápověda pro ukončení
 
@@ -76,12 +79,23 @@ class TelnetClient  // Hlavní třída telnet klienta
                     int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);  // Asynchronní čtení dat do bufferu
                     if (bytesRead > 0)  // Pokud bylo přečteno alespoň nějaké data
                     {
-                        string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);  // Převod binárních dat na řetězec UTF-8
+                        string data = ProcessTelnetData(buffer, bytesRead);  // Odstranění telnetových příkazů a převod z UTF-8
                         Console.Write(data);  // Výpis dat na konzoli
+                    }
+                    else
+                    {
+                        break;  // Server ukončil spojení
                     }
                 }
                 else  // Pokud nejsou dostupná data
                 {
+                    // DataAvailable je false i po zavření spojení serverem - odpojení se pozná přes Poll
+                    if (client.Client.Poll(0, SelectMode.SelectRead) && client.Client.Available == 0)
+                    {
+                        Console.WriteLine("\nServer ukončil spojení.");
+                        break;
+                    }
+
                     await Task.Delay(50, cancellationToken);  // Krátké čekání (50 ms) před kontrolou znovu (šetří prostředky)
                 }
             }
@@ -97,6 +111,54 @@ class TelnetClient  // Hlavní třída telnet klienta
                 Console.WriteLine($"\nChyba při příjmu dat: {ex.Message}");  // Výpis chyby příjmu
             }
         }
+    }
+
+    // Stav zpracování telnetových příkazů (zachovává se mezi voláními, protože příkaz může být rozdělen mezi dva čtení)
+    private int iacState = 0;  // 0 = běžná data, 1 = po IAC, 2 = čeká na option, 3 = subnegotiation, 4 = IAC uvnitř subnegotiation
+    private byte iacCommand;  // Poslední příkaz (WILL/WONT/DO/DONT)
+    private readonly Decoder utf8Decoder = Encoding.UTF8.GetDecoder();  // Dekodér zvládne UTF-8 znak rozdělený mezi dvě čtení
+
+    // Odstraní telnetové řídicí sekvence (IAC ...), na žádosti o volby odpoví odmítnutím a vrátí čistý text
+    private string ProcessTelnetData(byte[] data, int length)
+    {
+        const byte IAC = 255, SE = 240, SB = 250;
+        var clean = new System.Collections.Generic.List<byte>(length);
+
+        for (int i = 0; i < length; i++)
+        {
+            byte b = data[i];
+            switch (iacState)
+            {
+                case 0:
+                    if (b == IAC) iacState = 1; else clean.Add(b);
+                    break;
+                case 1:
+                    if (b == IAC) { clean.Add(IAC); iacState = 0; }  // Escapovaný bajt 255
+                    else if (b >= 251 && b <= 254) { iacCommand = b; iacState = 2; }
+                    else if (b == SB) iacState = 3;
+                    else iacState = 0;
+                    break;
+                case 2:
+                    // Odmítnutí všech voleb: DO -> WONT, WILL -> DONT
+                    if (iacCommand == 253 || iacCommand == 251)
+                    {
+                        byte[] reply = { IAC, iacCommand == 253 ? (byte)252 : (byte)254, b };
+                        try { stream.Write(reply, 0, reply.Length); } catch { }
+                    }
+                    iacState = 0;
+                    break;
+                case 3:
+                    if (b == IAC) iacState = 4;
+                    break;
+                case 4:
+                    iacState = b == SE ? 0 : 3;
+                    break;
+            }
+        }
+
+        char[] chars = new char[clean.Count + 4];
+        int count = utf8Decoder.GetChars(clean.ToArray(), 0, clean.Count, chars, 0);
+        return new string(chars, 0, count);
     }
 
     private async Task SendDataAsync(CancellationToken cancellationToken)  // Metoda pro odesílání dat na server
@@ -148,6 +210,14 @@ class TelnetClient  // Hlavní třída telnet klienta
 
         while (true)  // Nekonečná smyčka pro čtení kláves
         {
+            // Čekání na klávesu s kontrolou zrušení (např. server zavřel spojení), ReadKey by jinak blokovalo
+            while (!Console.KeyAvailable)
+            {
+                if (cancellationTokenSource == null || cancellationTokenSource.IsCancellationRequested)
+                    return "QUIT";
+                Thread.Sleep(20);
+            }
+
             keyInfo = Console.ReadKey(true);  // Načtení klávesy bez zobrazení (intercept = true)
 
             if (keyInfo.Key == ConsoleKey.Enter)  // Pokud byla stisknuta Enter
@@ -178,6 +248,7 @@ class TelnetClient  // Hlavní třída telnet klienta
     private void Disconnect()  // Metoda pro bezpečné ukončení spojení
     {
         isConnected = false;  // Nastavení příznaku připojení na false
+        Console.TreatControlCAsInput = false;  // Obnovení běžného chování Ctrl+C
 
         try  // Pokus o bezpečné uzavření prostředků
         {
@@ -197,7 +268,8 @@ class TelnetClient  // Hlavní třída telnet klienta
 /*
 Inicializace připojení - Na základě argumentů příkazové řádky
 Asynchronní operace - Simultánní čtení a zápis pomocí Tasks
-Zpracování příjmu dat - Průběžné čtení ze síťového streamu
+Zpracování příjmu dat - Průběžné čtení ze síťového streamu; telnetové příkazy (IAC) se odfiltrují a všechny volby se odmítnou (WILL -> DONT, DO -> WONT)
+Detekce odpojení - Zavření spojení serverem se pozná kontrolou socketu (Poll), DataAvailable to neumí
 Zpracování odesílání dat - Čtení vstupu z konzole a odesílání na server
 Podpora ukončení - Příkaz QUIT nebo Ctrl+C/Escape
 Ošetření chyb - Robustní zachycování výjimek

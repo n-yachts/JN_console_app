@@ -31,7 +31,8 @@ class ChatClient
                 string input = Console.ReadLine();
 
                 // Ukončení klienta při zadání "exit"
-                if (input == "exit") break;
+                // (null = konec vstupu, např. Ctrl+Z)
+                if (input == null || input == "exit") break;
 
                 // Převod zprávy na bajty a odeslání přes síťový stream
                 byte[] data = Encoding.UTF8.GetBytes(input);

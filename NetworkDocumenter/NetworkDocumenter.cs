@@ -50,10 +50,8 @@ class NetworkDocumenter  // Hlavní třída pro dokumentování sítě
 
     static void DocumentRoutingTable()  // Metoda pro dokumentaci směrovací tabulky
     {
-        Console.WriteLine("2. SMĚROVACÍ TABULKA:");  // Nadpis sekce
-
-        // Získání aktivních TCP spojení (použito pro kontext)
-        var gateways = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections();
+        // Skutečná směrovací tabulka není přes .NET API dostupná, zobrazují se proto jen výchozí brány rozhraní
+        Console.WriteLine("2. VÝCHOZÍ BRÁNY (zjednodušená směrovací tabulka):");  // Nadpis sekce
 
         // Zjednodušené zobrazení výchozích bran
         NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();

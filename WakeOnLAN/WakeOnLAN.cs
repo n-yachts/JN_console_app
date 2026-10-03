@@ -1,7 +1,6 @@
-﻿using System;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
+﻿using System;  // Základní jmenný prostor pro Console, Convert a základní třídy
+using System.Net;  // Třídy pro práci se sítí (IPAddress, IPEndPoint)
+using System.Net.Sockets;  // UDP klient (UdpClient) pro odeslání magického paketu
 
 class WakeOnLAN
 {
@@ -15,7 +14,7 @@ class WakeOnLAN
             return; // Ukončení programu při chybném počtu argumentů
         }
 
-        // Odstranění oddělovačů z MAC adresy (nahrazení dvojteček a pomlček prázdným znakem)
+        // Odstranění oddělovačů z MAC adresy (nahrazení dvojteček a pomlček prázdným řetězcem)
         string macAddress = args[0].Replace(":", "").Replace("-", "");
 
         // Kontrola délky MAC adresy po odstranění oddělovačů (musí být 12 znaků)
@@ -23,6 +22,16 @@ class WakeOnLAN
         {
             Console.WriteLine("Neplatná MAC adresa");
             return; // Ukončení programu při neplatné délce MAC adresy
+        }
+
+        // Kontrola, že MAC adresa obsahuje pouze hexadecimální znaky (0-9, A-F), jinak by Convert.ToByte vyvolal výjimku
+        foreach (char c in macAddress)
+        {
+            if (!Uri.IsHexDigit(c))
+            {
+                Console.WriteLine("Neplatná MAC adresa (povolené jsou jen znaky 0-9 a A-F)");
+                return; // Ukončení programu při neplatném znaku
+            }
         }
 
         // Vytvoření WoL packetu o velikosti 102 bytů
@@ -58,8 +67,8 @@ Kontrola vstupních argumentů
  Program vyžaduje jako vstupní parametr MAC adresu zařízení, které se má probudit.
 Normalizace MAC adresy
  Odstraní se zadané oddělovače (- nebo :) aby zůstal pouze 12místný HEX řetězec.
-Validace délky MAC adresy
- Po odstranění oddělovačů musí MAC adresa mít přesně 12 znaků.
+Validace MAC adresy
+ Po odstranění oddělovačů musí MAC adresa mít přesně 12 znaků a obsahovat jen hexadecimální číslice (0-9, A-F)
 Tvorba magického paketu
  Prvních 6 bytů: 0xFF (signatura WoL paketu)
  Následuje 16× opakovaná MAC adresa (96 bytů)

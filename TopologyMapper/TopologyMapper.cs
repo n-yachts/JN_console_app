@@ -18,55 +18,66 @@ class TopologyMapper  // Hlavní třída pro mapování sítě
         // Rozdělení vstupního argumentu (např. "192.168.1.0/24")
         string[] parts = args[0].Split('/');
 
-        // Parsování IP adresy sítě z první části
-        IPAddress network = IPAddress.Parse(parts[0]);
-
-        // Parsování CIDR notace z druhé části
-        int cidr = int.Parse(parts[1]);
+        // Kontrola formátu vstupu (IP/CIDR)
+        if (parts.Length != 2 || !IPAddress.TryParse(parts[0], out IPAddress network) ||
+            network.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
+            !int.TryParse(parts[1], out int cidr) || cidr < 1 || cidr > 30)
+        {
+            Console.WriteLine("Neplatný vstup. Použijte IPv4 adresu a prefix /1 až /30.");
+            return;
+        }
 
         // Výpočet počtu bitů pro hostitele
         int hostBits = 32 - cidr;
 
         // Výpočet počtu hostitelů v síti (odečítáme síť a broadcast)
-        uint hostCount = (uint)Math.Pow(2, hostBits) - 2;
-
-        // Informace o skenované síti
-        Console.WriteLine($"Skenování sítě {network}/{cidr} ({hostCount} hostů)");
+        uint hostCount = (uint)((1UL << hostBits) - 2);
 
         // Převod IP adresy na bajty
         byte[] ipBytes = network.GetAddressBytes();
 
-        // Sestavení základní IP adresy do 32-bit čísla
-        uint baseIp = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) |
+        // Sestavení IP adresy do 32-bit čísla (big-endian pořadí oktetů)
+        uint ipValue = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) |
                      ((uint)ipBytes[2] << 8) | ipBytes[3];
 
-        // Vytvoření pole úloh s omezením paralelního běhu (max 50 současně)
-        var tasks = new Task[Math.Min(50, hostCount)];
+        // Zarovnání na adresu sítě (zadaná adresa nemusí být adresou sítě)
+        uint baseIp = ipValue & (0xFFFFFFFFu << hostBits);
+
+        // Informace o skenované síti
+        Console.WriteLine($"Skenování sítě {new IPAddress(ToBytes(baseIp))}/{cidr} ({hostCount} hostů)");
+
+        // Seznam úloh s omezením paralelního běhu (max 50 současně)
+        const int batchSize = 50;
+        var tasks = new System.Collections.Generic.List<Task>(batchSize);
 
         // Cyklus přes všechny možné adresy hostitelů
         for (uint i = 1; i <= hostCount; i++)
         {
-            // Výpočet konkrétní IP adresy
-            uint ip = baseIp + i;
-
             // Spuštění asynchronní úlohy pro kontrolu hostitele
-            var task = CheckHost(ip);
+            tasks.Add(CheckHost(baseIp + i));
 
-            // Přiřazení úlohy do pole (cyklické použití indexů)
-            tasks[(i - 1) % tasks.Length] = task;
-
-            // Po naplnění pole úloh čekání na jejich dokončení
-            if (i % tasks.Length == 0)
+            // Po naplnění dávky čekání na dokončení úloh
+            if (tasks.Count == batchSize)
             {
                 await Task.WhenAll(tasks);
+                tasks.Clear();
             }
         }
+
+        // Dokončení poslední neúplné dávky
+        await Task.WhenAll(tasks);
+    }
+
+    // Převod 32-bit čísla na bajty IPv4 adresy ve správném pořadí
+    static byte[] ToBytes(uint ip)
+    {
+        return new byte[] { (byte)(ip >> 24), (byte)(ip >> 16), (byte)(ip >> 8), (byte)ip };
     }
 
     static async Task CheckHost(uint ip)  // Asynchronní metoda pro kontrolu hostitele
     {
         // Převod čísla zpět na IPAddress objekt
-        IPAddress address = new IPAddress(ip);
+        IPAddress address = new IPAddress(ToBytes(ip));
 
         // Vytvoření Ping objektu pomocí using pro automatické uvolnění zdrojů
         using (Ping ping = new Ping())
@@ -106,11 +117,11 @@ class TopologyMapper  // Hlavní třída pro mapování sítě
 /*
 CIDR výpočty:
  hostBits = 32 - cidr - určuje počet bitů pro hostitele
- Math.Pow(2, hostBits) - 2 - vypočítá počet dostupných adres (mínus síť a broadcast)
+ Počet použitelných adres je 2^hostBits - 2 (mínus adresa sítě a broadcast), proto se povoluje jen prefix /1 až /30
+ Adresa se zarovná na adresu sítě pomocí AND s maskou a převádí se na bajty ve správném pořadí (ToBytes)
 Paralelní zpracování:
- Pole tasks slouží jako "okno" pro maximální počet současných pingů
- Indexování (i-1) % tasks.Length cyklicky plní pole úlohami
- Task.WhenAll(tasks) čeká na dokončení celé várky úloh
+ Seznam tasks slouží jako "okno" pro maximální počet současných pingů (50)
+ Task.WhenAll(tasks) čeká na dokončení celé várky úloh a po cyklu i na poslední neúplnou várku
 Metoda CheckHost:
  Používá asynchronní ping s timeoutem 1s
  Při úspěchu se pokusí o reverzní DNS lookup

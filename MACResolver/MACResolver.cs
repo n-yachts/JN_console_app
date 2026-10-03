@@ -27,6 +27,8 @@ class MACResolver  // Hlavní třída programu
                 return;
             }
 
+            bool found = false;  // Příznak, zda byla nalezena alespoň jedna MAC adresa
+
             // Procházení všech vrácených IP adres
             foreach (IPAddress address in addresses)
             {
@@ -37,12 +39,20 @@ class MACResolver  // Hlavní třída programu
                     PhysicalAddress mac = GetMACAddress(address);
 
                     // Zpracování pouze platných výsledků
-                    if (mac != null)
+                    // Loopback a některá virtuální rozhraní mají prázdnou MAC adresu
+                    if (mac != null && mac.GetAddressBytes().Length == 6)
                     {
                         Console.WriteLine($"IP: {address}");
                         Console.WriteLine($"MAC: {FormatMAC(mac)}");  // Formátování MAC adresy
+                        found = true;
                     }
                 }
+            }
+
+            // Adresa nepatří žádnému lokálnímu rozhraní (viz poznámka u GetMACAddress)
+            if (!found)
+            {
+                Console.WriteLine("MAC adresa nenalezena - program umí zjistit jen MAC adresy lokálních rozhraní.");
             }
         }
         catch (Exception ex)  // Zachycení všech možných chyb
@@ -79,7 +89,7 @@ class MACResolver  // Hlavní třída programu
 
         string macString = mac.ToString();  // Původní formát např.: "001122AABBCC"
 
-        // Rozděnění řetězce po dvou znacích a spojení dvojtečkami
+        // Rozdělení řetězce po dvou znacích a spojení dvojtečkami
         return string.Join(":",
             macString.Substring(0, 2),
             macString.Substring(2, 2),

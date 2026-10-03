@@ -27,7 +27,7 @@ class TraceRoute  // Hlavní třída programu
             // Vytvoření nového Ping objektu pro každý skok
             using (Ping ping = new Ping())
             {
-                // Nastavení PingOptions - TTL a povolení fragmentace
+                // Nastavení PingOptions - TTL a DontFragment = true (fragmentace paketů je zakázána)
                 PingOptions options = new PingOptions(ttl, true);
                 byte[] buffer = new byte[32];  // 32b buffer pro data ping požadavku
 

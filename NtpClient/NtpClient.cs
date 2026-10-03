@@ -16,7 +16,7 @@ class NtpClient         // Hlavní třída NTP klienta
             "tak.cesnet.cz"      // Další český NTP server CESNETu
         };
 
-        Console.WriteLine("NTP Time Synchronizer\n");  // Výpis hlavičky programu
+        Console.WriteLine("NTP Time Check - porovnání lokálního času s NTP servery\n");  // Výpis hlavičky (čas se pouze porovnává, nenastavuje)
 
         // Cyklus procházející všechny NTP servery v poli
         foreach (string server in ntpServers)
@@ -58,18 +58,24 @@ class NtpClient         // Hlavní třída NTP klienta
 
         // Překlad doménového jména na IP adresu
         var addresses = Dns.GetHostEntry(ntpServer).AddressList;
-        // Vytvoření koncového bodu pro spojení (první resolved adresa, port 123)
-        var ipEndPoint = new IPEndPoint(addresses[0], 123);
+        // Socket je IPv4, proto se vybere první IPv4 adresa (první záznam může být IPv6)
+        var ipv4 = Array.Find(addresses, a => a.AddressFamily == AddressFamily.InterNetwork);
+        if (ipv4 == null)
+            throw new InvalidOperationException("Server nemá IPv4 adresu");
+        // Vytvoření koncového bodu pro spojení (port 123)
+        var ipEndPoint = new IPEndPoint(ipv4, 123);
 
         // Vytvoření UDP socketu pomocí using pro automatické uvolnění prostředků
         using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
         {
+            // Časový limit, aby ztracený UDP paket nezablokoval program navždy
+            socket.ReceiveTimeout = 5000;
             socket.Connect(ipEndPoint);  // Připojení k NTP serveru
             socket.Send(ntpData);        // Odeslání NTP dotazu
             socket.Receive(ntpData);     // Příjem odpovědi (přepíše původní ntpData)
         }
 
-        // Pozice timestampu v odpovědi (64 bitů - 8 bytů od pozice 40)
+        // Pozice Transmit Timestamp v odpovědi (čas odeslání odpovědi serverem, 64 bitů - 8 bytů od pozice 40)
         const byte serverReplyTime = 40;
         // Převod prvních 4 bytů na unsigned integer (celočíselná část timestampu)
         ulong intPart = BitConverter.ToUInt32(ntpData, serverReplyTime);

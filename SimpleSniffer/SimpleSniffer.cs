@@ -1,25 +1,47 @@
-﻿using System;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+﻿using System;  // Základní jmenný prostor pro Console a BitConverter
+using System.Net;  // IPAddress, IPEndPoint, Dns
+using System.Net.Sockets;  // Socket, IOControlCode, nastavení raw socketu
 
-class SimpleSniffer
+class SimpleSniffer  // Jednoduchý sniffer IP paketů (raw socket)
 {
     static void Main()
     {
         // Výpis úvodní informace o programu
-        Console.WriteLine("Základní síťový sniffer - zachytává ICMP a TCP pakety\n");
+        Console.WriteLine("Základní síťový sniffer - zachytává IP pakety (ICMP, TCP, UDP...)\n");
+
+        // Zjištění IPv4 adresy lokálního rozhraní, na kterém se bude zachytávat
+        // (bind na 127.0.0.1 by zachytil jen loopback provoz)
+        IPAddress localIp = null;
+        foreach (IPAddress address in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+        {
+            if (address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address))
+            {
+                localIp = address;
+                break;
+            }
+        }
+        if (localIp == null)
+        {
+            Console.WriteLine("Nebyla nalezena žádná IPv4 adresa lokálního rozhraní.");
+            return;
+        }
 
         // Vytvoření raw socketu pro zachytávání síťových paketů
         // AddressFamily.InterNetwork = IPv4 adresy
         // SocketType.Raw = Raw socket umožňující čtení celých paketů včetně hlaviček
         // ProtocolType.IP = Zachycení paketů na IP úrovni
-        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
-
-        // Navázání socketu na konkrétní IP adresu a port
-        // IPAddress.Parse("127.0.0.1") = Naslouchání na localhostu
-        // Port 0 = systém automaticky přiřadí volný port
-        socket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 0));
+        Socket socket;
+        try
+        {
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
+            socket.Bind(new IPEndPoint(localIp, 0));
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Chyba: {ex.Message} (spusťte program jako správce)");
+            return;
+        }
+        Console.WriteLine($"Zachytávám na rozhraní {localIp}\n");
 
         // Nastavení socketové option pro includování IP hlavičky v přijatých datech
         socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.HeaderIncluded, true);
@@ -70,10 +92,10 @@ Kód funguje pouze na Windows (kvůli IOControlCode.ReceiveAll)
 Vyžaduje spuštění s administrátorskými právy
 Zachycuje pouze IPv4 komunikaci
 Zobrazuje základní informace z IP hlavičky, neanalyzuje transportní vrstvu
-Funguje pouze pro localhost (127.0.0.1) - pro zachycování veškerého provozu je třeba změnit na IPAddress.Any
+Zachytává provoz na prvním nalezeném IPv4 rozhraní počítače (ne jen na loopbacku); na Wi-Fi adaptérech nemusí promiskuitní režim fungovat
 
 Tento kód demonstruje základní princip síťového sniffování, ale v reálném nasazení by bylo vhodné doplnit:
-Ošetření výjimek
+Rozsáhlejší ošetření výjimek (ošetřeno je jen vytvoření socketu)
 Podrobnější analýzu paketů
 Možnost filtrování
 Ukládání do souboru

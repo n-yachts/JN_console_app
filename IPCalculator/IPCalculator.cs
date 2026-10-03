@@ -22,11 +22,17 @@ class IPCalculator  // Hlavní třída programu
             return;  // Ukončení programu při chybném formátu
         }
 
-        IPAddress ipAddress = IPAddress.Parse(parts[0]);  // Převedení řetězce na IPAddress objekt
-        int maskLength = int.Parse(parts[1]);  // Převedení délky masky na číslo
+        // Kontrola vstupu: IPv4 adresa a délka masky 0-32
+        if (!IPAddress.TryParse(parts[0], out IPAddress ipAddress) ||
+            ipAddress.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
+            !int.TryParse(parts[1], out int maskLength) || maskLength < 0 || maskLength > 32)
+        {
+            Console.WriteLine("Neplatný vstup. Použijte IPv4 adresu a masku 0-32.");
+            return;
+        }
 
-        // Výpočet masky sítě pomocí bitového posunu
-        uint mask = 0xFFFFFFFFu << (32 - maskLength);  // Vytvoření bitové masky
+        // Výpočet masky sítě pomocí bitového posunu (posun o 32 bitů by se v C# neprovedl, proto zvláštní případ /0)
+        uint mask = maskLength == 0 ? 0u : 0xFFFFFFFFu << (32 - maskLength);  // Vytvoření bitové masky
         // Konverze na IPAddress (Reverse je potřeba kvůli odlišnému pořadí bajtů)
         IPAddress subnetMask = new IPAddress(BitConverter.GetBytes(mask).Reverse().ToArray());
 
@@ -51,13 +57,18 @@ class IPCalculator  // Hlavní třída programu
         IPAddress broadcastAddress = new IPAddress(broadcastBytes);
 
         // Výpočet první použitelné adresy
-        byte[] firstUsableBytes = networkBytes;  // Začneme od síťové adresy
-        firstUsableBytes[3] += 1;  // Inkrementujeme poslední bajt
+        byte[] firstUsableBytes = (byte[])networkBytes.Clone();  // Kopie, aby se nezměnila síťová adresa
+        byte[] lastUsableBytes = (byte[])broadcastBytes.Clone();  // Kopie, aby se nezměnila broadcast adresa
+
+        // Pro /31 a /32 neexistuje síťová ani broadcast adresa v klasickém smyslu (RFC 3021)
+        if (maskLength < 31)
+        {
+            firstUsableBytes[3] += 1;  // Inkrementujeme poslední bajt
+            lastUsableBytes[3] -= 1;   // Dekrementujeme poslední bajt
+        }
         IPAddress firstUsable = new IPAddress(firstUsableBytes);
 
         // Výpočet poslední použitelné adresy
-        byte[] lastUsableBytes = broadcastBytes;  // Začneme od broadcast adresy
-        lastUsableBytes[3] -= 1;  // Dekrementujeme poslední bajt
         IPAddress lastUsable = new IPAddress(lastUsableBytes);
 
         // Výpis všech vypočtených hodnot
@@ -67,7 +78,8 @@ class IPCalculator  // Hlavní třída programu
         Console.WriteLine($"Broadcast: {broadcastAddress}");
         Console.WriteLine($"Rozsah hostů: {firstUsable} - {lastUsable}");
         // Výpočet počtu hostů: 2^(počet volných bitů) - 2 (síť + broadcast)
-        Console.WriteLine($"Počet hostů: {Math.Pow(2, 32 - maskLength) - 2}");
+        long hostCount = maskLength >= 31 ? (maskLength == 32 ? 1 : 2) : (1L << (32 - maskLength)) - 2;
+        Console.WriteLine($"Počet hostů: {hostCount}");
     }
 }
 
@@ -84,5 +96,7 @@ Broadcast adresa:
 Použitelné adresy:
  První: síťová adresa + 1 (192.168.1.1)
  Poslední: broadcast adresa - 1 (192.168.1.254)
-Program pracuje správně pro IPv4 adresy s maskou v CIDR zápisu
+Výjimky: u masky /31 (spoj dvou zařízení, RFC 3021) a /32 (jediný host) se použitelné adresy neposouvají o 1
+Počet hostů: 2^(32 - maska) - 2; pro /31 jsou to 2 adresy, pro /32 jedna
+Program pracuje s IPv4 adresami a maskou v CIDR zápisu
 */

@@ -31,7 +31,7 @@ class SimpleFileServer  // Hlavní třída souborového serveru
     {
         using (client) // Automatické uvolnění prostředků klienta po dokončení
         using (NetworkStream stream = client.GetStream()) // Získání síťového streamu pro komunikaci
-        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8)) // Čtečka pro příjem textu
+        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8)) // Čtečka pro příjem textu (v této ukázce se zatím nepoužívá, server od klienta nic nečte)
         using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8)) // Zapisovač pro odesílání textu
         {
             try
@@ -61,7 +61,7 @@ Inicializace serveru:
  Adresář se vytváří při spuštění, pokud neexistuje
  IPAddress.Any znamená naslouchání na všech síťových rozhraních
 Přijímání klientů:
- AcceptTcpClientAsync() blokuje čekáním na nové připojení
+ AcceptTcpClientAsync() asynchronně (bez blokování vlákna) čeká na nové připojení
  Pro každého klienta se spustí asynchronní úloha (Task.Run)
  Použití _ = ignoruje vrácený Task (v production kódu by se měly ošetřovat výjimky)
 Komunikace s klientem:

@@ -38,7 +38,7 @@ class DNSResolver  // Hlavní třída programu
 }
 
 /*
-Kontrola argumentů: Program nejprve zkontroluje, zda byl spuštěn s exactly jedním argumentem (jméno hostitele)
+Kontrola argumentů: Program nejprve zkontroluje, zda byl spuštěn s přesně jedním argumentem (jméno hostitele)
 DNS dotaz: Pomocí metody Dns.GetHostAddresses() provede dotaz na DNS servery pro získání IP adres
 Zpracování výsledků:
  Pro každou nalezenou IP adresu vypíše její textovou reprezentaci

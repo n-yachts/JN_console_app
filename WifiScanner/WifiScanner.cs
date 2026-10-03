@@ -1,7 +1,7 @@
 ﻿using System;  // Import základních systémových knihoven
 using System.Collections.Generic;  // Import knihovny pro práci s kolekcemi (List, atd.)
 using System.Diagnostics;  // Import pro práci s procesy (spouštění příkazů)
-using System.Security.Principal;
+using System.Security.Principal;  // Kontrola, zda program běží jako správce (WindowsIdentity)
 using System.Text;  // Import pro práci s kódováním textu
 
 class WifiScanner  // Hlavní třída programu
@@ -13,14 +13,12 @@ class WifiScanner  // Hlavní třída programu
         
         Console.WriteLine("Wireless Network Scanner\n");  // Výpis nadpisu programu
 
-        // Kontrola administrátorských oprávnění
+        // netsh wlan show networks admina nevyžaduje (na Windows 11 24H2 ale potřebuje zapnuté polohové služby),
+        // proto se při chybějících oprávněních jen upozorní a skenování se přesto spustí
         if (!IsRunningAsAdmin())
         {
-            Console.WriteLine("⚠️  UPOZORNĚNÍ: Program není spuštěn s administrátorskými oprávněními!");
-            Console.WriteLine("Pro správnou funkci skenování WiFi sítí spusťte program jako správce (Run as Administrator).");
-            Console.WriteLine("\nStiskněte libovolnou klávesu pro ukončení...");
-            Console.ReadKey();
-            return;
+            Console.WriteLine("⚠️  Program není spuštěn jako správce. Pokud skenování selže, spusťte jej jako správce");
+            Console.WriteLine("    a zkontrolujte, zda jsou zapnuté polohové služby.\n");
         }
 
         ScanWindowsWifi();  // Spuštění Windows-specifického skenování
@@ -54,7 +52,8 @@ class WifiScanner  // Hlavní třída programu
                 RedirectStandardError = true,  // Přesměrování chybového výstupu
                 UseShellExecute = false,  // Zakázání shellu pro přímé spuštění
                 CreateNoWindow = true,  // Skrytí konzolového okna
-                StandardOutputEncoding = Encoding.GetEncoding(1250) // Windows-1250 pro české znaky
+                // netsh vypisuje v OEM kódové stránce konzole (v češtině 852), ne ve Windows-1250
+                StandardOutputEncoding = Encoding.GetEncoding(System.Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage)
             };
 
             using (Process process = new Process { StartInfo = startInfo })  // Vytvoření procesu
@@ -101,19 +100,20 @@ class WifiScanner  // Hlavní třída programu
                 if (colonIndex > 0)
                     currentNetwork.SSID = trimmed.Substring(colonIndex + 1).Trim();  // Extrakce názvu sítě
             }
-            else if (trimmed.StartsWith("Signal") && currentNetwork != null)  // Úroveň signálu
+            // Názvy položek netsh jsou lokalizované, proto se hledá anglická i česká varianta
+            else if ((trimmed.StartsWith("Signal") || trimmed.StartsWith("Signál")) && currentNetwork != null)  // Úroveň signálu
             {
                 int colonIndex = trimmed.IndexOf(':');
                 if (colonIndex > 0)
                     currentNetwork.Signal = trimmed.Substring(colonIndex + 1).Trim();  // Extrakce síly signálu
             }
-            else if (trimmed.StartsWith("Type") && currentNetwork != null)  // Typ zabezpečení
+            else if ((trimmed.StartsWith("Authentication") || trimmed.StartsWith("Ověř")) && currentNetwork != null)  // Typ zabezpečení
             {
                 int colonIndex = trimmed.IndexOf(':');
                 if (colonIndex > 0)
                     currentNetwork.AuthType = trimmed.Substring(colonIndex + 1).Trim();  // Extrakce autentizace
             }
-            else if (trimmed.StartsWith("Channel") && currentNetwork != null)  // Číslo kanálu
+            else if ((trimmed.StartsWith("Channel") || trimmed.StartsWith("Kanál")) && currentNetwork != null)  // Číslo kanálu
             {
                 int colonIndex = trimmed.IndexOf(':');
                 if (colonIndex > 0)
@@ -123,7 +123,7 @@ class WifiScanner  // Hlavní třída programu
             {
                 int colonIndex = trimmed.IndexOf(':');
                 if (colonIndex > 0)
-                    currentNetwork.BSSID = trimmed.Substring(colonIndex + 1).Trim();  // Extrakce BSSID
+                    currentNetwork.BSSID = trimmed.Substring(colonIndex + 1).Trim();  // Extrakce BSSID (má-li síť více přístupových bodů, uloží se poslední)
             }
         }
 
@@ -165,7 +165,7 @@ class WifiNetwork  // Třída pro reprezentaci WiFi sítě
 Skenování na Windows:
  Spouští systémový příkaz netsh wlan show networks mode=bssid
  Zachytává a parsuje výstup s informacemi o WiFi sítích
- Používá kódování Windows-1250 pro české znaky
+ Čte výstup v OEM kódové stránce konzole (v češtině 852); názvy položek hledá česky i anglicky
 Zpracování výstupu:
  Analyzuje řádek po řádku
  Identifikuje klíčové informace (SSID, signál, kanál, atd.)

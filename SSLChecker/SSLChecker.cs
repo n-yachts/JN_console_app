@@ -1,6 +1,6 @@
-﻿using System;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
+﻿using System;  // Základní jmenný prostor pro Console, Exception a základní třídy
+using System.Net.Security;  // SslStream a SslPolicyErrors pro TLS/SSL komunikaci
+using System.Security.Cryptography.X509Certificates;  // Práce s X.509 certifikáty
 
 class SSLChecker
 {
@@ -17,8 +17,10 @@ class SSLChecker
 
         // Zpracování vstupního argumentu
         // Rozdělení řetězce na části podle dvojtečky (např. "google.com:443")
-        string hostname = args[0].Split(':')[0];  // První část - název hostitele
-        int port = int.Parse(args[0].Split(':')[1]);  // Druhá část - port převedený na číslo
+        string[] hostParts = args[0].Split(':');
+        string hostname = hostParts[0];  // První část - název hostitele
+        // Druhá část - port převedený na číslo (bez portu se použije výchozí HTTPS port 443)
+        int port = hostParts.Length > 1 ? int.Parse(hostParts[1]) : 443;
 
         // Vytvoření TCP připojení k zadanému serveru a portu
         using var client = new System.Net.Sockets.TcpClient(hostname, port);
@@ -33,7 +35,7 @@ class SSLChecker
 
         try
         {
-            // Provedení SSL handshake a ověření certifikátu
+            // Provedení SSL/TLS handshake (certifikát se ověřuje callbackem ValidateServerCertificate, který v ukázce přijme vše)
             sslStream.AuthenticateAsClient(hostname);
 
             // Získání certifikátu ze serveru
@@ -71,5 +73,13 @@ class SSLChecker
 }
 
 /*
-
+Vstup: hostname nebo hostname:port (bez portu se použije 443)
+Navázání spojení:
+ TcpClient otevře TCP spojení, SslStream nad ním provede TLS handshake
+ AuthenticateAsClient(hostname) odešle jméno serveru (SNI), podle kterého server vybere certifikát
+Výpis certifikátu:
+ Subjekt (komu byl vydán), vydavatel (certifikační autorita), doba platnosti a SHA1 otisk
+Validace:
+ Callback ValidateServerCertificate vždy vrací true, takže se vypíše i neplatný nebo self-signed certifikát
+ To je vhodné pro diagnostiku, ne pro bezpečné připojení
 */

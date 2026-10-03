@@ -35,6 +35,13 @@ class LdapBrowser  // Hlavní třída aplikace
                 connection.AuthType = AuthType.Basic;  // Základní autentizace
                 connection.SessionOptions.ProtocolVersion = 3;  // Verze LDAP protokolu 3
 
+                // Basic autentizace posílá heslo v čitelné podobě, proto se na portu 636 zapne SSL
+                // a na ostatních portech se uživatel upozorní
+                if (port == 636)
+                    connection.SessionOptions.SecureSocketLayer = true;
+                else
+                    Console.WriteLine("⚠️  Spojení není šifrované - heslo se posílá v čitelné podobě (použijte port 636).");
+
                 Console.WriteLine($"Připojování k LDAP serveru {server}:{port}...");
                 connection.Bind();  // Provedení skutečného připojení k serveru
                 Console.WriteLine("✅ Připojení úspěšné\n");
@@ -47,13 +54,31 @@ class LdapBrowser  // Hlavní třída aplikace
                     null                // Vracet všechny atributy
                 );
 
-                // Odeslání požadavku a získání odpovědi
-                SearchResponse response = (SearchResponse)connection.SendRequest(request);
+                // Stránkování výsledků (server jinak obvykle omezí počet vrácených záznamů, např. na 1000)
+                var pageControl = new PageResultRequestControl(500);
+                request.Controls.Add(pageControl);
 
-                Console.WriteLine($"Nalezeno {response.Entries.Count} objektů:\n");
+                // Sběr záznamů ze všech stránek
+                var entries = new System.Collections.Generic.List<SearchResultEntry>();
+                while (true)
+                {
+                    // Odeslání požadavku a získání odpovědi
+                    SearchResponse response = (SearchResponse)connection.SendRequest(request);
+                    foreach (SearchResultEntry e in response.Entries)
+                        entries.Add(e);
+
+                    // Server vrací cookie další stránky; prázdná cookie = konec
+                    var pageResponse = (PageResultResponseControl)Array.Find(
+                        response.Controls, c => c is PageResultResponseControl);
+                    if (pageResponse == null || pageResponse.Cookie.Length == 0)
+                        break;
+                    pageControl.Cookie = pageResponse.Cookie;
+                }
+
+                Console.WriteLine($"Nalezeno {entries.Count} objektů:\n");
 
                 // Cyklus přes všechny nalezené záznamy
-                foreach (SearchResultEntry entry in response.Entries)
+                foreach (SearchResultEntry entry in entries)
                 {
                     Console.WriteLine($"DN: {entry.DistinguishedName}");  // Výpis DN (Distinguished Name)
                     Console.WriteLine("Atributy:");
@@ -67,7 +92,9 @@ class LdapBrowser  // Hlavní třída aplikace
                         // Cyklus přes všechny hodnoty atributu (atribut může mít více hodnot)
                         foreach (object value in attribute)
                         {
-                            Console.Write($"{value} ");  // Výpis hodnoty atributu
+                            // Binární hodnoty (byte[]) se vypíší jako hex místo "System.Byte[]"
+                            string text = value is byte[] bytes ? BitConverter.ToString(bytes) : value.ToString();
+                            Console.Write($"{text} ");  // Výpis hodnoty atributu
                         }
                         Console.WriteLine();  // Nový řádek za všemi hodnotami atributu
                     }
@@ -91,7 +118,7 @@ Struktura aplikace:
  Konzolová aplikace pro procházení LDAP adresáře
  Používá moderní DirectoryServices.Protocols namísto staršího DirectoryServices
 Bezpečnostní aspekty:
- Připojení není šifrované (pouze Basic autentizace)
+ Basic autentizace posílá heslo v čitelné podobě; na portu 636 se proto zapíná SSL, na jiných portech program varuje
  V produkčním prostředí doporučeno použít SSL/TLS
  Citlivé údaje (heslo) se předávají jako argument
 Využití:
@@ -99,8 +126,8 @@ Využití:
  Prohlížení struktury adresáře
  Testování přihlašovacích údajů
 Možná vylepšení:
- Přidání podpory SSL
- Implementace stránkování pro velké výsledky
+ Ověření serverového certifikátu a podpora StartTLS
+ (stránkování výsledků po 500 záznamech je již implementováno)
  Filtrování atributů
  Podpora více autentizačních metod
 */

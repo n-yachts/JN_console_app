@@ -4,6 +4,7 @@
   <Project Path="ArpPing/ArpPing.csproj" Id="e111dd9d-30b7-419d-9f9e-951b1647a3ac" />
   <Project Path="ARPTable/ARPTable.csproj" Id="fa37cbe8-6064-4859-af14-4ce3329dac58" />
   <Project Path="BandwidthMonitor/BandwidthMonitor.csproj" Id="2dc12ce5-1362-4780-85e1-b1639b68aede" />
+  <Project Path="CDP_LLDP_Scanner/CDP_LLDP_Scanner.csproj" Id="5ec73d35-3a47-4461-b855-9121fefa94e1" />
   <Project Path="CertificateExpiryChecker/CertificateExpiryChecker.csproj" Id="e98db970-5128-4cff-9ef0-5fe9ca989ebb" />
   <Project Path="ChatClient/ChatClient.csproj" Id="c1d3693a-7b11-4273-8ee3-750ce8080bb9" />
   <Project Path="ChatServer/ChatServer.csproj" Id="225550f4-b40f-4fce-90ef-e75c40fb7f7f" />

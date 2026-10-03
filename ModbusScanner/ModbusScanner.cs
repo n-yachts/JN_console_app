@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Net.Sockets;
-using System.Threading.Tasks;
+using System.Net.Sockets;  // TcpClient a NetworkStream pro komunikaci přes TCP
+using System.Threading.Tasks;  // Asynchronní programování (Task, async/await)
 
 // Hlavní třída pro skenování Modbus zařízení
 class ModbusScanner
@@ -37,7 +37,9 @@ class ModbusScanner
                 Console.WriteLine("✅ Úspěšně připojeno k Modbus zařízení\n");
 
                 // Seznam testovaných Modbus funkčních kódů
-                byte[] functionsToTest = { 1, 2, 3, 4, 5, 6, 15, 16 };
+                // Testují se pouze čtecí funkce - zápisové funkce (5, 6, 15, 16) by na skutečném
+                // zařízení (PLC) změnily stav výstupů/registrů, proto se neodesílají
+                byte[] functionsToTest = { 1, 2, 3, 4 };
 
                 // Iterace přes všechny funkční kódy
                 foreach (byte functionCode in functionsToTest)
@@ -68,12 +70,28 @@ class ModbusScanner
 
             // Příprava bufferu pro odpověď
             byte[] responseBuffer = new byte[256];
-            int bytesRead = await stream.ReadAsync(responseBuffer, 0, responseBuffer.Length);
+            Task<int> readTask = stream.ReadAsync(responseBuffer, 0, responseBuffer.Length);
+            if (await Task.WhenAny(readTask, Task.Delay(3000)) != readTask)
+                throw new TimeoutException("Zařízení neodpovědělo");
+            int bytesRead = readTask.Result;
 
-            // Zpracování odpovědi
-            if (bytesRead > 0)
+            string functionName = GetFunctionName(functionCode);
+
+            if (bytesRead < 8)
             {
-                string functionName = GetFunctionName(functionCode);
+                Console.WriteLine($"❌ Funkce {functionCode} ({functionName}): neplatná odpověď");
+            }
+            // Exception response: funkční kód má nastavený nejvyšší bit, kód výjimky je v dalším bajtu
+            else if ((responseBuffer[7] & 0x80) != 0)
+            {
+                byte exceptionCode = bytesRead > 8 ? responseBuffer[8] : (byte)0;
+                if (exceptionCode == 0x01) // Illegal Function
+                    Console.WriteLine($"❌ Funkce {functionCode} ({functionName}): NEPODPOROVÁNO (Illegal Function)");
+                else
+                    Console.WriteLine($"✅ Funkce {functionCode} ({functionName}): PODPOROVÁNO (výjimka {exceptionCode} - např. neplatná adresa)");
+            }
+            else
+            {
                 Console.WriteLine($"✅ Funkce {functionCode} ({functionName}): PODPOROVÁNO");
 
                 // Speciální zpracování pro čtecí funkce registrů
@@ -141,7 +159,7 @@ class ModbusScanner
     static void ParseHoldingRegisters(byte[] response, int length)
     {
         // Kontrola platnosti odpovědi (správný funkční kód a minimální délka)
-        if (length >= 9 && response[7] == 0x03) // 0x03 = Read Holding Registers
+        if (length >= 11 && (response[7] == 0x03 || response[7] == 0x04)) // 0x03 = Holding, 0x04 = Input Registers
         {
             byte byteCount = response[8]; // Počet bytů s daty
             if (byteCount >= 2) // Minimálně 2 byty pro jeden registr
@@ -156,8 +174,8 @@ class ModbusScanner
 
 /*
 Modbus TCP Komunikace - Používá standardní TCP socket pro komunikaci
-Testování Funkcí - Automaticky testuje 8 běžných Modbus funkcí
-Chybové Zpracování - Robustní zachycení výjimek
+Testování Funkcí - Testuje 4 čtecí Modbus funkce (zápisové funkce se záměrně neodesílají)
+Chybové Zpracování - Zachycení výjimek a rozlišení exception response (odpověď s nejvyšším bitem funkčního kódu; kód 1 = Illegal Function znamená nepodporovanou funkci)
 MBAP Hlavička - Správná tvorba Modbus Application Protocol hlavičky
 Čitelný Výstup - Přehledné zobrazení výsledků s emoji pro rychlou orientaci
 

@@ -4,7 +4,7 @@ using System.Net.Sockets;  // Import socketů pro síťovou komunikaci
 using System.Text;  // Import práce s textovými encodingy (UTF-8)
 using System.Threading.Tasks;  // Import asynchronního programování
 
-class SipAnalyzer  // Hlavní třída pro analýzu SIP komunikace
+class SipAnalyzer  // Hlavní třída - UDP posluchač a analyzátor SIP zpráv
 {
     static async Task Main(string[] args)  // Hlavní asynchronní vstupní bod programu
     {
@@ -123,9 +123,9 @@ class SipAnalyzer  // Hlavní třída pro analýzu SIP komunikace
 
 /*
 Struktura programu:
- Aplikace je navržena jako jednoduchý SIP sniffer
- Používá UDP socket pro zachytávání SIP zpráv
- Pracuje s textovou formou SIP protokolu
+ Aplikace je jednoduchý SIP posluchač: přijímá zprávy, které někdo odešle na zadaný UDP port (nezachytává cizí provoz na síti)
+ Používá UDP socket (SIP standardně používá port 5060) pro příjem SIP zpráv
+ Pracuje s textovou formou SIP protokolu (hlavičky jsou řádky "Název: hodnota")
 Klíčové komponenty:
  Main() - inicializace a kontrola parametrů
  StartSipListener() - síťová vrstva pro příjem zpráv

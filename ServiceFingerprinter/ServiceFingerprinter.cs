@@ -1,4 +1,6 @@
 ﻿using System;  // Import základních systémových knihoven
+using System.IO;  // Import pro práci se streamy
+using System.Net.Security;  // Import SslStream pro HTTPS
 using System.Net.Sockets;  // Import knihovny pro práci s TCP sokety
 using System.Text;  // Import knihoven pro práci s textovými encodingy
 using System.Threading.Tasks;  // Import knihoven pro asynchronní programování
@@ -26,24 +28,44 @@ class ServiceFingerprinter  // Hlavní třída programu
                 // Asynchronní navázání spojení se zadaným hostitelem a portem
                 await client.ConnectAsync(host, port);
                 // Získání síťového streamu pro čtení a zápis dat
-                NetworkStream stream = client.GetStream();
+                Stream stream = client.GetStream();
+
+                // Kontrola čísel portů typických pro HTTP služby (HTTP server banner sám neposílá)
+                bool isHttp = port == 80 || port == 443 || port == 8080;
+
+                // Na portu 443 je nutné nejdřív navázat TLS (certifikát se zde neověřuje, jde jen o identifikaci služby)
+                if (port == 443)
+                {
+                    var ssl = new SslStream(stream, false, (s, cert, chain, errors) => true);
+                    ssl.AuthenticateAsClient(host);
+                    stream = ssl;
+                }
 
                 // Příprava bufferu pro přijetí dat (banneru)
                 byte[] buffer = new byte[1024];
-                // Asynchronní čtení příchozích dat ze služby
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                // Převod přijatých bajtů na textový řetězec v UTF-8 kódování
-                string banner = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                int bytesRead;
 
-                // Výpis získaného banneru služby
-                Console.WriteLine($"Banner služby na {host}:{port}:");
-                Console.WriteLine(banner);
+                if (!isHttp)
+                {
+                    // Čtení banneru s časovým limitem (některé služby banner neposílají)
+                    Task<int> readTask = stream.ReadAsync(buffer, 0, buffer.Length);
+                    if (await Task.WhenAny(readTask, Task.Delay(3000)) == readTask)
+                    {
+                        bytesRead = readTask.Result;
+                        // Výpis získaného banneru služby
+                        Console.WriteLine($"Banner služby na {host}:{port}:");
+                        Console.WriteLine(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Služba na {host}:{port} neposlala žádný banner.");
+                    }
+                }
 
-                // Kontrola čísel portů typických pro HTTP služby
-                if (port == 80 || port == 443 || port == 8080)
+                if (isHttp)
                 {
                     // Příprava základního HTTP GET požadavku
-                    byte[] httpRequest = Encoding.UTF8.GetBytes("GET / HTTP/1.0\r\n\r\n");
+                    byte[] httpRequest = Encoding.UTF8.GetBytes($"GET / HTTP/1.0\r\nHost: {host}\r\n\r\n");
                     // Odeslání HTTP požadavku do síťového streamu
                     await stream.WriteAsync(httpRequest, 0, httpRequest.Length);
 
@@ -69,7 +91,7 @@ class ServiceFingerprinter  // Hlavní třída programu
 /*
 Kontrola argumentů: Program vyžaduje dva vstupní parametry - hostitele a port
 TCP spojení: Naváže spojení se zadanou službou pomocí TCP protokolu
-Banner grabbing: Čeká na úvodní zprávu (banner), kterou mnoho služeb posílá při spojení
-HTTP detekce: Pro porty 80/443/8080 automaticky posílá HTTP požadavek
+Banner grabbing: Čeká (max. 3 s) na úvodní zprávu (banner), kterou mnoho služeb (SSH, FTP, SMTP) posílá hned po spojení
+HTTP detekce: Pro porty 80/443/8080 hned posílá HTTP požadavek (HTTP server banner neposílá); na portu 443 nejdřív naváže TLS
 Analýza odpovědi: Zobrazí kompletní odpověď od služby včetně hlaviček
 */

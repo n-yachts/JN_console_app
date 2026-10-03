@@ -1,5 +1,4 @@
 ﻿using System;  // Import základních systémových funkcí a tříd (např. Console, DateTime)
-using System.Diagnostics;  // Import tříd pro diagnostiku (např. Stopwatch)
 using System.Net.NetworkInformation;  // Import síťových funkcí (např. Ping, PingReply)
 using System.Threading.Tasks;  // Import pro asynchronní programování (Task, async/await)
 
@@ -44,19 +43,19 @@ class LatencyMonitor  // Hlavní třída programu pro monitorování latence
     // Asynchronní metoda pro měření latence pomocí ICMP ping
     static async Task<long> MeasureLatency(string host)
     {
-        Ping ping = new Ping();  // Vytvoření instance třídy Ping
-        Stopwatch sw = Stopwatch.StartNew();  // Spuštění stopek pro přesnější měření
+        // Ping se uvolňuje po každém měření (using), jinak by se v nekonečné smyčce hromadily zdroje
+        using (Ping ping = new Ping())
+        {
+            // Odeslání asynchronního ping požadavku s timeoutem 1000ms (1 sekunda)
+            PingReply reply = await ping.SendPingAsync(host, 1000);
 
-        // Odeslání asynchronního ping požadavku s timeoutem 1000ms (1 sekunda)
-        PingReply reply = await ping.SendPingAsync(host, 1000);
-        sw.Stop();  // Zastavení stopek
+            // Kontrola, zda byl ping úspěšný
+            if (reply.Status != IPStatus.Success)
+                throw new Exception("Ping failed");  // Vyhození výjimky při neúspěchu
 
-        // Kontrola, zda byl ping úspěšný
-        if (reply.Status != IPStatus.Success)
-            throw new Exception("Ping failed");  // Vyhození výjimky při neúspěchu
-
-        // Vrácení naměřené doby odezvy z ping reply
-        return reply.RoundtripTime;
+            // Vrácení naměřené doby odezvy z ping reply
+            return reply.RoundtripTime;
+        }
     }
 }
 
@@ -72,7 +71,7 @@ Hlavní monitorovací smyčka:
  Mezi cykly je 5vteřinová pauza
 Metoda MeasureLatency:
  Používá třídu Ping pro odesílání ICMP Echo requestů
- Kombinuje systémový ping s stopkami pro přesné měření
+ Dobu odezvy přebírá z odpovědi (PingReply.RoundtripTime)
  Timeout nastaven na 1 sekundu
  Vrací hodnotu RTT (Round-Trip Time) nebo vyhazuje výjimku
 */

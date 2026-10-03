@@ -1,5 +1,5 @@
 ﻿using System;  // Import základních systémových funkcí a tříd
-using System.Net.Security;  // Import pro práci s SSL/TStream
+using System.Net.Security;  // Import pro práci s SSL/TLS (SslStream)
 using System.Security.Cryptography.X509Certificates;  // Import pro práci s X.509 certifikáty
 
 class CertificateExpiryChecker  // Hlavní třída pro kontrolu platnosti certifikátu
@@ -43,7 +43,9 @@ class CertificateExpiryChecker  // Hlavní třída pro kontrolu platnosti certif
                 Console.WriteLine($"  Platný do: {expiry:dd.MM.yyyy}");  // Datum expirace
                 Console.WriteLine($"  Zbývá: {remaining.Days} dnů");  // Počet zbývajících dnů
 
-                if (remaining.Days < 30)  // Kontrola, zda certifikát expiruje za méně než 30 dní
+                if (remaining.TotalDays < 0)  // Certifikát už vypršel
+                    Console.WriteLine("  ❌ Certifikát je PROŠLÝ!");
+                else if (remaining.Days < 30)  // Kontrola, zda certifikát expiruje za méně než 30 dní
                     Console.WriteLine("  ⚠️  Certifikát brzy expiruje!");  // Varování
             }
         }

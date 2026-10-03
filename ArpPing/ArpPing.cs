@@ -33,7 +33,16 @@ namespace ArpPing  // Definice jmenného prostoru pro organizaci kódu
 
                 // Kontrola jestli se nejedná o multicast/broadcast
                 // ARP protokol nelze použít pro tyto typy adres
-                if (target.IsIPv6Multicast || IPAddress.Broadcast.Equals(target))
+                // ARP existuje jen pro IPv4
+                if (target.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    Console.WriteLine("Chyba: ARP podporuje pouze IPv4 adresy");
+                    return;
+                }
+
+                // IPv4 multicast je 224.0.0.0/4
+                byte firstOctet = target.GetAddressBytes()[0];
+                if (firstOctet >= 224 && firstOctet <= 239 || IPAddress.Broadcast.Equals(target))
                 {
                     Console.WriteLine("Chyba: ARP nelze použít pro multicast/broadcast adresy");
                     return;

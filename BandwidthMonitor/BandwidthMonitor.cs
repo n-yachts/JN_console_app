@@ -1,6 +1,5 @@
 ﻿using System;  // Základní jmenný prostor pro vstup/výstup, základní třídy
 using System.Collections.Generic;  // Práce s kolekcemi (List, Dictionary atd.)
-using System.Diagnostics;  // Práce s procesy a stopkami
 using System.Net.NetworkInformation;  // Síťové informace a monitorování
 using System.Threading;  // Práce s vlákny a asynchronními operacemi
 using System.Threading.Tasks;  // Asynchronní programování
@@ -17,7 +16,7 @@ class BandwidthMonitor  // Hlavní třída pro monitorování šířky pásma
     {
         // Výstup úvodních informací
         Console.WriteLine("Síťový Bandwidth Monitor");
-        Console.WriteLine("Stiskni Enter nebo Ctrl+C pro zastavení\n");
+        Console.WriteLine("Stiskni Ctrl+C pro zastavení\n");
 
         // Inicializace zdroje tokenu pro zrušení
         _cancellationTokenSource = new CancellationTokenSource();
@@ -118,8 +117,6 @@ class BandwidthMonitor  // Hlavní třída pro monitorování šířky pásma
     // Hlavní metoda pro monitorování síťového rozhraní
     static async Task MonitorInterface(NetworkInterface ni, CancellationToken cancellationToken)
     {
-        // Spuštění stopek pro měření času
-        var stopwatch = Stopwatch.StartNew();
         // Získání počátečních statistik rozhraní
         var initialStats = ni.GetIPv4Statistics();
         // Uložení počátečních hodnot přenesených dat
@@ -228,7 +225,7 @@ Paralelní monitorování
 Výpočetní algoritmy
  CalculateSpeed() - Převod bytů na síťové jednotky (kbps/Mbps/Gbps)
  FormatBytes() - Formátování pro čitelný výstup (KB/MB/GB/TB)
- Měření rozdílů přenesených dat v 1-sekundových intervalech
+ Měření rozdílů přenesených dat v 1-sekundových intervalech (rychlost se počítá z rozdílu čítačů za 1 s)
 Error handling
  Zachycení OperationCanceledException pro čisté ukončení
  Samostatné zachycení chyb pro každé rozhraní

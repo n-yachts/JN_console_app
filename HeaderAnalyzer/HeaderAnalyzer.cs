@@ -1,4 +1,5 @@
 ﻿using System;  // Importování základních systémových knihoven
+using System.Linq;  // Spojení kolekcí hlaviček (Concat)
 using System.Net.Http;  // Importování knihoven pro HTTP komunikaci
 using System.Threading.Tasks;  // Importování knihoven pro asynchronní programování
 
@@ -21,18 +22,30 @@ class HeaderAnalyzer  // Definice třídy pro analýzu HTTP hlaviček
             client.DefaultRequestHeaders.Add("User-Agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 
-            // Asynchronní odeslání GET požadavku na zadanou URL
-            HttpResponseMessage response = await client.GetAsync(url);
+            // Automatické doplnění schématu pokud chybí
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "http://" + url;
 
-            // Výpis HTTP stavového kódu
-            Console.WriteLine($"HTTP Status: {(int)response.StatusCode} {response.StatusCode}");
-            Console.WriteLine("\nHlavičky:");  // Výpis nadpisu pro sekci hlaviček
-
-            // Cyklus pro iterování přes všechny hlavičky odpovědi
-            foreach (var header in response.Headers)
+            try
             {
-                // Výpis názvu hlavičky a jejích hodnot (oddělených čárkou)
-                Console.WriteLine($"  {header.Key}: {string.Join(", ", header.Value)}");
+                // Asynchronní odeslání GET požadavku na zadanou URL
+                HttpResponseMessage response = await client.GetAsync(url);
+
+                // Výpis HTTP stavového kódu
+                Console.WriteLine($"HTTP Status: {(int)response.StatusCode} {response.StatusCode}");
+                Console.WriteLine("\nHlavičky:");  // Výpis nadpisu pro sekci hlaviček
+
+                // Cyklus pro iterování přes hlavičky odpovědi a hlavičky obsahu (Content-Type, Content-Length...)
+                foreach (var header in response.Headers.Concat(response.Content.Headers))
+                {
+                    // Výpis názvu hlavičky a jejích hodnot (oddělených čárkou)
+                    Console.WriteLine($"  {header.Key}: {string.Join(", ", header.Value)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Chyba: {ex.Message}");
             }
         }
     }

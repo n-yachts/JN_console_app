@@ -16,7 +16,8 @@ class HTTPChecker  // Hlavní třída programu
         string url = args[0];  // Získání URL z prvního argumentu
 
         // Automatické doplnění schématu pokud chybí
-        if (!url.StartsWith("http"))
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             url = "http://" + url;
 
         // Vytvoření HTTP klienta s using pro automatické uvolnění prostředků

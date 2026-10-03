@@ -16,7 +16,7 @@ class ChatServer  // Hlavní třída chatovacího serveru
 
         while (true)  // Nekonečná smyčka pro průběžné přijímání klientů
         {
-            // Asynchronní čekání na příchozí připojení (blokující operace)
+            // Asynchronní čekání na příchozí připojení (nezablokuje vlákno)
             TcpClient client = await listener.AcceptTcpClientAsync();
 
             // Spuštění nového úkolu pro obsluhu klienta (bez čekání na dokončení)
@@ -35,24 +35,37 @@ class ChatServer  // Hlavní třída chatovacího serveru
         // Výpis informace o připojeném klientovi (IP adresa a port)
         Console.WriteLine($"Klient připojen: {client.Client.RemoteEndPoint}");
 
-        while (true)  // Smyčka pro průběžné čtení zpráv od klienta
+        // Adresa se uloží předem - po uzavření spojení už ji nelze z klienta číst
+        var remote = client.Client.RemoteEndPoint;
+
+        try
         {
-            // Asynchronní čtení dat ze streamu (počet přečtených bytů)
-            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+            while (true)  // Smyčka pro průběžné čtení zpráv od klienta
+            {
+                // Asynchronní čtení dat ze streamu (počet přečtených bytů)
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
 
-            if (bytesRead == 0) break;  // Klient ukončil spojení (prázdný packet)
+                if (bytesRead == 0) break;  // Klient ukončil spojení (prázdný packet)
 
-            // Převod přijatých bytů na řetězec pomocí UTF-8 kodování
-            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                // Převod přijatých bytů na řetězec pomocí UTF-8 kodování
+                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
 
-            // Výpis zprávy s identifikací klienta
-            Console.WriteLine($"[{client.Client.RemoteEndPoint}]: {message}");
+                // Výpis zprávy s identifikací klienta
+                Console.WriteLine($"[{remote}]: {message}");
+            }
         }
+        catch (Exception ex)
+        {
+            // Např. náhlé přerušení spojení klientem (reset)
+            Console.WriteLine($"Chyba spojení s {remote}: {ex.Message}");
+        }
+        finally
+        {
+            // Informace o odpojení klienta
+            Console.WriteLine($"Klient odpojen: {remote}");
 
-        // Informace o odpojení klienta
-        Console.WriteLine($"Klient odpojen: {client.Client.RemoteEndPoint}");
-
-        client.Close();  // Uzavření spojení a uvolnění prostředků
+            client.Close();  // Uzavření spojení a uvolnění prostředků
+        }
     }
 }
 

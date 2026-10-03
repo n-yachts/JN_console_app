@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
+﻿using System;  // Základní jmenný prostor pro Console, Func, StringComparer
+using System.Collections.Generic;  // Dictionary a List
+using System.Net;  // IPAddress
+using System.Net.Sockets;  // TcpListener, TcpClient, NetworkStream
+using System.Text;  // StringBuilder a kódování UTF-8
+using System.Threading;  // CancellationTokenSource
+using System.Threading.Tasks;  // Task, async/await
+using System.Linq;  // LINQ (Where, OrderBy pro hledání příkazů)
 
 // Hlavní třída Telnet serveru simulujícího síťové zařízení
 class TelnetServer
@@ -82,6 +82,9 @@ class TelnetServer
                 cancellationTokenSource.Cancel();
             };
 
+            // Po Ctrl+C zastavit listener, aby se přerušilo čekání v AcceptTcpClientAsync
+            cancellationTokenSource.Token.Register(() => listener.Stop());
+
             await AcceptClientsAsync(); // Spuštění přijímání klientů
         }
         catch (Exception ex)
@@ -107,6 +110,11 @@ class TelnetServer
             catch (ObjectDisposedException)
             {
                 // Listener byl ukončen během čekání
+                break;
+            }
+            catch (SocketException) when (cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                // Listener byl zastaven kvůli ukončení serveru
                 break;
             }
             catch (Exception ex)
@@ -142,7 +150,7 @@ class TelnetServer
                 byte[] buffer = new byte[1024]; // Buffer pro příchozí data
                 StringBuilder inputBuffer = new StringBuilder(); // Buffer pro stavbu příkazů
 
-                while (!cancellationToken.IsCancellationRequested && client.Connected)
+                while (!cancellationToken.IsCancellationRequested && client.Connected && !session.CloseRequested)
                 {
                     if (stream.DataAvailable)
                     {
@@ -150,7 +158,8 @@ class TelnetServer
                         if (bytesRead == 0) // Klient se odpojil
                             break;
 
-                        string receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                        // Odfiltrování telnetových řídicích sekvencí (IAC) a NUL bajtů
+                        string receivedData = DecodeTelnetInput(buffer, bytesRead);
                         inputBuffer.Append(receivedData);
 
                         // Zpracování po přijetí nového řádku
@@ -164,6 +173,9 @@ class TelnetServer
                                 string response = await ProcessCommand(input, session);
                                 await SendResponse(session, response);
                             }
+
+                            if (session.CloseRequested)
+                                break;
 
                             await SendPrompt(session); // Zobrazení nového promptu
                         }
@@ -181,6 +193,42 @@ class TelnetServer
         }
 
         Console.WriteLine($"Klient odpojen: {clientEndPoint}");
+    }
+
+    // Převod přijatých bajtů na text bez telnetových příkazů (IAC ...) a NUL bajtů
+    private static string DecodeTelnetInput(byte[] buffer, int length)
+    {
+        const byte IAC = 255, SB = 250, SE = 240;
+        var clean = new List<byte>(length);
+
+        for (int i = 0; i < length; i++)
+        {
+            if (buffer[i] == IAC && i + 1 < length)
+            {
+                byte cmd = buffer[i + 1];
+                if (cmd == SB)
+                {
+                    // Subnegotiation: přeskočit až za IAC SE
+                    i += 2;
+                    while (i + 1 < length && !(buffer[i] == IAC && buffer[i + 1] == SE)) i++;
+                    i++;
+                }
+                else if (cmd >= 251 && cmd <= 254)
+                {
+                    i += 2;  // IAC WILL/WONT/DO/DONT <option>
+                }
+                else
+                {
+                    i += 1;  // Ostatní dvoubajtové příkazy (včetně escapovaného IAC)
+                }
+            }
+            else if (buffer[i] != 0)
+            {
+                clean.Add(buffer[i]);
+            }
+        }
+
+        return Encoding.UTF8.GetString(clean.ToArray());
     }
 
     // Odeslání uvítací zprávy novému klientovi
@@ -214,6 +262,16 @@ Type 'help' or '?' for available commands
         if (commands.ContainsKey(command))
         {
             return await commands[command].Execute(session, configuration, command);
+        }
+
+        // Příkazy s argumentem (např. "hostname R1") - shoda na začátku příkazu
+        var withArgs = commands.Keys
+            .Where(c => command.StartsWith(c + " ", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(c => c.Length)
+            .FirstOrDefault();
+        if (withArgs != null)
+        {
+            return await commands[withArgs].Execute(session, configuration, command);
         }
 
         // Hledání podobných příkazů pro lepší UX
@@ -348,7 +406,9 @@ Internet  192.168.1.100         -    0011.2233.4466  ARPA   GigabitEthernet0/2
             return "";
         }
 
-        return "exit";
+        // Na nejvyšší úrovni exit ukončí relaci
+        session.CloseRequested = true;
+        return "Spojení ukončeno.";
     }
 
     // Příkaz: Zobrazení nápovědy
@@ -391,6 +451,7 @@ public class ClientSession
     public NetworkStream Stream { get; set; } // Síťový stream
     public bool IsPrivilegedMode { get; set; } // Stav privilegovaného módu
     public bool IsConfigMode { get; set; } // Stav konfiguračního módu
+    public bool CloseRequested { get; set; } // Klient požádal o ukončení relace (příkaz exit na nejvyšší úrovni)
     public string Hostname { get; set; } // Aktuální hostname
 }
 
@@ -431,6 +492,8 @@ Telnet server simulující síťové zařízení (router/switch)
 Podpora různých uživatelských módů (uživatelský, privilegovaný, konfigurační)
 Příkazy inspirované Cisco IOS (show running-config, enable, configure terminal, atd.)
 Kompletní zpracování TCP spojení s více klienty
-Ošetření výjimek a korektní ukončování
+Ošetření výjimek a korektní ukončování (Ctrl+C zastaví listener, příkaz exit na nejvyšší úrovni ukončí relaci)
+Telnetové řídicí sekvence (IAC) a NUL bajty od klienta se před zpracováním příkazu odfiltrují
+Příkazy s argumentem (např. "hostname R1") se najdou podle začátku příkazu
 Rozšiřitelná architektura pro přidávání nových příkazů
 */

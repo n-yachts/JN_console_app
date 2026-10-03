@@ -21,7 +21,7 @@ class CustomTraceroute  // Hlavní třída pro provedení traceroute
         {
             for (int ttl = 1; ttl <= maxHops; ttl++)  // Smyčka přes všechny TTL od 1 do maxHops
             {
-                PingOptions options = new PingOptions(ttl, true);  // Nastavení TTL a povolení fragmentace
+                PingOptions options = new PingOptions(ttl, true);  // Nastavení TTL a DontFragment = true (fragmentace paketů je zakázána)
                 PingReply reply = await ping.SendPingAsync(target, timeout, new byte[32], options);  // Asynchronní ping s nastavením
 
                 Console.WriteLine($"{ttl}\t{reply.Address}\t{reply.RoundtripTime}ms\t{reply.Status}");  // Výpis výsledku

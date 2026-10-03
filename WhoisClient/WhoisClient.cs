@@ -16,7 +16,7 @@ class WhoisClient      // Hlavní třída WHOIS klienta
         }
 
         string domain = args[0];  // Uložení prvního argumentu jako doménové jméno
-        string whoisServer = "whois.iana.org";  // Primární WHOIS server pro základní informace
+        string whoisServer = "whois.iana.org";  // WHOIS server organizace IANA (vrací informace o TLD a odkaz na koncový WHOIS server)
         int port = 43;            // Standardní port pro WHOIS protokol
 
         try  // Ošetření možných chyb spojení a komunikace
@@ -64,8 +64,8 @@ class WhoisClient      // Hlavní třída WHOIS klienta
 /*
 Zkompilujte jako konzolovou aplikaci
 Spusťte příkazem: WhoisClient example.com
-Program zobrazí registrované informace o doméně
+Program zobrazí odpověď serveru whois.iana.org (informace o koncovce domény a řádek "refer:" s adresou registru)
 
-Tento kód demonstruje základní WHOIS dotaz.
-Pro kompletní informace je často potřeba následovat přesměrování na koncový WHOIS server uvedený v odpovědi.
+Tento kód demonstruje základní WHOIS dotaz (protokol WHOIS běží na TCP portu 43, dotaz je jeden řádek textu).
+Pro podrobné informace o konkrétní doméně je potřeba dotaz zopakovat na koncový WHOIS server uvedený v odpovědi (řádek "refer:").
 */

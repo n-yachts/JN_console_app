@@ -28,8 +28,15 @@ class PortScanner  // Definice třídy pro skenování portů
             {
                 try
                 {
-                    // Pokus o asynchronní připojení k cíli na daný port
-                    await client.ConnectAsync(target, port);
+                    // Pokus o asynchronní připojení k cíli na daný port s časovým limitem 2 s
+                    // (filtrované porty by jinak čekaly na systémový timeout ~21 s)
+                    Task connectTask = client.ConnectAsync(target, port);
+                    if (await Task.WhenAny(connectTask, Task.Delay(2000)) != connectTask)
+                    {
+                        Console.WriteLine($"Port {port}: FILTROVANÝ (timeout)");
+                        continue;
+                    }
+                    await connectTask;  // Případná chyba spojení se tak projeví jako výjimka
 
                     // Pokud připojení uspěje - port je otevřený
                     Console.WriteLine($"Port {port}: OTEVŘENÝ");

@@ -57,7 +57,6 @@ namespace AdvancedPing  // Deklarace jmenného prostoru pro organizaci kódu
             }
 
             // Console.WriteLine("\nStiskněte libovolnou klávesu pro ukončení...");
-            // Console.ReadKey();
         }
 
         // Hlavní metoda pro pingování cílové adresy
@@ -65,7 +64,7 @@ namespace AdvancedPing  // Deklarace jmenného prostoru pro organizaci kódu
         {
             using (Ping ping = new Ping())  // Vytvoření instance Ping s automatickým uvolněním prostředků
             {
-                // Konfigurace ping options - nastavení fragmentace paketů
+                // Konfigurace ping options - DontFragment = true zakazuje fragmentaci paketů (užitečné při zjišťování MTU)
                 PingOptions options = new PingOptions { DontFragment = true };
                 // Buffer s daty k odeslání (32 bajtů)
                 byte[] buffer = new byte[32];
@@ -107,10 +106,10 @@ namespace AdvancedPing  // Deklarace jmenného prostoru pro organizaci kódu
                 }
 
                 // Výpis statistik po dokončení všech pingů
+                Console.WriteLine($"\nStatistika:");
+                Console.WriteLine($"  Úspěšné pingy: {successfulPings}/{pingCount}");
                 if (successfulPings > 0)
                 {
-                    Console.WriteLine($"\nStatistika:");
-                    Console.WriteLine($"  Úspěšné pingy: {successfulPings}/{pingCount}");
                     Console.WriteLine($"  Průměrný čas: {totalTime / successfulPings}ms");
                 }
             }
@@ -157,8 +156,8 @@ namespace AdvancedPing  // Deklarace jmenného prostoru pro organizaci kódu
 /*
 Zpracování argumentů - Přijímá cílovou adresu, volitelný timeout a počet pingů
 Chybová kontrola - Validuje vstupy a ošetřuje výjimky
-Asynchronní operace - Používá async/await pro nemařící operace
-Konfigurovatelné parametry - Velikost bufferu, fragmentace paketů
+Asynchronní operace - Používá async/await pro neblokující operace
+Konfigurovatelné parametry - Timeout a počet pingů (velikost dat je pevně 32 bajtů, fragmentace je zakázána)
 Podrobné výstupy - Zobrazuje TTL, velikost dat, dobu odezvy
 Statistiky - Poskytuje přehled úspěšnosti a průměrnou dobu odezvy
 */

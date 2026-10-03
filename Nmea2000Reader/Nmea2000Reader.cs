@@ -1,16 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.IO.Ports;
-using System.Linq;
-using System.Text;
+﻿using System;  // Základní jmenný prostor pro Console, BitConverter, Math
+using System.Collections.Generic;  // Dictionary pro tabulku názvů PGN
+using System.IO.Ports;  // Práce se sériovým portem (SerialPort)
 
-namespace Nmea2000Reader
+namespace Nmea2000Reader  // Jmenný prostor projektu
 {
-    class Nmea2000Reader
+    // Zjednodušená čtečka NMEA 2000 (CAN bus) přes sériovou linku.
+    // Vstupní formát je pro výukové účely zjednodušen: [PGN 3 B little-endian][zdrojová adresa 1 B][max. 8 B dat].
+    // Skutečná zařízení (např. Actisense NGT-1, Yacht Devices) používají vlastní rámcování, proto je nutné jej doplnit.
+    class Nmea2000Reader  // Hlavní třída programu
     {
-        private static SerialPort _serialPort;
+        private static SerialPort _serialPort;  // Sériový port sdílený mezi metodami
+
+        // Tabulka známých PGN (Parameter Group Number = číslo skupiny parametrů) a jejich názvů
         private static readonly Dictionary<uint, string> PgnNames = new Dictionary<uint, string>
         {
             { 126992, "System Time" },
@@ -23,40 +24,46 @@ namespace Nmea2000Reader
             { 128267, "Water Depth" },
             { 129025, "Position Rapid Update" },
             { 129026, "COG & SOG Rapid Update" },
-            { 129027, "GNSS Position Data" },
-            { 129029, "GNSS DOPs" },
+            { 129029, "GNSS Position Data" },
             { 129033, "Time & Date" },
-            { 129539, "GNSS Satellites in View" },
+            { 129539, "GNSS DOPs" },
+            { 129540, "GNSS Satellites in View" },
             { 130306, "Wind Data" },
             { 130310, "Environmental Parameters" },
             { 130311, "Temperature" },
             { 130312, "Pressure" },
             { 130313, "Humidity" },
-            { 130314, "Actual Salinity" }
+            { 130314, "Actual Pressure" }
         };
 
-        static void Main(string[] args)
+        // Převodní konstanty (NMEA 2000 používá radiány a m/s)
+        private const double RadToDeg = 180.0 / Math.PI;
+        private const double MsToKnots = 1.0 / 0.514444;
+
+        static void Main(string[] args)  // Hlavní vstupní bod programu
         {
             Console.WriteLine("NMEA 2000 Reader");
             Console.WriteLine("================\n");
 
             _serialPort = new SerialPort();
 
+            // Výběr a nastavení portu uživatelem
             if (!ConfigureSerialPort())
             {
                 Console.WriteLine("Nepodařilo se nakonfigurovat sériový port.");
-                return;
+                return;  // Ukončení programu při chybné konfiguraci
             }
 
-            try
+            try  // Ošetření chyb při otevírání portu
             {
                 _serialPort.Open();
                 Console.WriteLine($"Připojeno k {_serialPort.PortName}, {_serialPort.BaudRate} baud");
                 Console.WriteLine("Čtení NMEA 2000 dat... Stiskněte 'q' pro ukončení.\n");
 
+                // Obsluha události se volá na samostatném vlákně vždy, když dorazí data
                 _serialPort.DataReceived += SerialPort_DataReceived;
 
-                // Hlavní smyčka
+                // Hlavní smyčka - čeká na ukončení klávesou 'q' (zpracování dat probíhá v události)
                 while (true)
                 {
                     var key = Console.ReadKey(true);
@@ -68,7 +75,7 @@ namespace Nmea2000Reader
             {
                 Console.WriteLine($"Chyba: {ex.Message}");
             }
-            finally
+            finally  // Uvolnění portu proběhne vždy
             {
                 if (_serialPort?.IsOpen == true)
                     _serialPort.Close();
@@ -79,11 +86,12 @@ namespace Nmea2000Reader
             Console.ReadKey();
         }
 
+        // Dotaz na uživatele a nastavení sériového portu; vrací false, pokud se nastavení nepodařilo
         static bool ConfigureSerialPort()
         {
             try
             {
-                string[] ports = SerialPort.GetPortNames();
+                string[] ports = SerialPort.GetPortNames();  // Seznam portů dostupných v systému
 
                 if (ports.Length == 0)
                 {
@@ -100,6 +108,7 @@ namespace Nmea2000Reader
                 Console.Write("\nVyberte port (číslo nebo název): ");
                 string input = Console.ReadLine();
 
+                // Číslo ze seznamu vybere port podle pořadí, jinak se vstup bere jako přímý název portu
                 if (int.TryParse(input, out int portNumber) && portNumber >= 1 && portNumber <= ports.Length)
                 {
                     _serialPort.PortName = ports[portNumber - 1];
@@ -109,6 +118,7 @@ namespace Nmea2000Reader
                     _serialPort.PortName = input;
                 }
 
+                // Prázdný vstup = výchozí hodnota; neplatné číslo vyvolá výjimku zachycenou níže
                 Console.Write("Baud rate (výchozí 115200): ");
                 string baudInput = Console.ReadLine();
                 _serialPort.BaudRate = string.IsNullOrEmpty(baudInput) ? 115200 : int.Parse(baudInput);
@@ -131,17 +141,18 @@ namespace Nmea2000Reader
             }
         }
 
+        // Obsluha události - zavolá se, když na sériový port dorazí data
         private static void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             try
             {
-                int bytesToRead = _serialPort.BytesToRead;
+                int bytesToRead = _serialPort.BytesToRead;  // Počet bajtů čekajících v bufferu
                 if (bytesToRead == 0) return;
 
                 byte[] buffer = new byte[bytesToRead];
-                _serialPort.Read(buffer, 0, bytesToRead);
+                _serialPort.Read(buffer, 0, bytesToRead);  // Přečtení všech dostupných bajtů
 
-                ProcessNmea2000Data(buffer);
+                ProcessNmea2000Data(buffer);  // Rozparsování zpráv
             }
             catch (Exception ex)
             {
@@ -149,9 +160,10 @@ namespace Nmea2000Reader
             }
         }
 
+        // Zpracování přijatého bloku bajtů jako posloupnosti zpráv za sebou
         static void ProcessNmea2000Data(byte[] data)
         {
-            // NMEA 2000 používá CAN bus frame formát
+            // NMEA 2000 používá CAN bus frame formát (zde zjednodušený, viz komentář u třídy)
             // Zpracování jako stream dat - hledání kompletních zpráv
             for (int i = 0; i < data.Length; i++)
             {
@@ -167,19 +179,22 @@ namespace Nmea2000Reader
                     {
                         Console.WriteLine($"Chyba parsování zprávy: {ex.Message}");
                     }
+
+                    // ProcessN2kMessage posune index za zprávu; for cyklus ho ještě zvýší, proto se vrací o 1 zpět
+                    i--;
                 }
             }
         }
 
+        // Rozparsování jedné zprávy od pozice index; index se posune za zpracovanou zprávu
         static void ProcessN2kMessage(byte[] data, ref int index)
         {
             // ZÁKLADNÍ PARSOVÁNÍ NMEA 2000 ZPRÁVY
             // Toto je zjednodušená implementace - reálná implementace by byla komplexnější
 
-            if (index + 3 >= data.Length) return;
+            if (index + 3 >= data.Length) return;  // Příliš krátká zpráva
 
             // Předpokládáme, že data obsahují kompletní N2K zprávy
-            int startIndex = index;
 
             // Získání PGN (Parameter Group Number) - 3 byty little-endian
             uint pgn = (uint)(data[index] | (data[index + 1] << 8) | (data[index + 2] << 16));
@@ -204,6 +219,7 @@ namespace Nmea2000Reader
             index += dataLength;
         }
 
+        // Výběr zpracování podle čísla PGN
         static void ProcessPgnData(uint pgn, byte[] data)
         {
             try
@@ -216,10 +232,10 @@ namespace Nmea2000Reader
                     case 129026: // COG & SOG Rapid Update
                         ProcessCogSogRapidUpdate(data);
                         break;
-                    case 129027: // GNSS Position Data
-                        ProcessGnssPositionData(data);
+                    case 129029: // GNSS Position Data - fast-packet (víc než 8 bajtů), jednoduchý parser ho nesloží
+                        Console.WriteLine("(Fast-packet PGN - není podporováno)");
                         break;
-                    case 129029: // GNSS DOPs
+                    case 129539: // GNSS DOPs
                         ProcessGnssDops(data);
                         break;
                     case 129033: // Time & Date
@@ -248,6 +264,7 @@ namespace Nmea2000Reader
             }
         }
 
+        // PGN 129025 - rychlá aktualizace polohy: zeměpisná šířka a délka (int32, 1e-7 stupně)
         static void ProcessPositionRapidUpdate(byte[] data)
         {
             if (data.Length < 8) return;
@@ -258,104 +275,107 @@ namespace Nmea2000Reader
             Console.WriteLine($"Pozice: {latitude:F6}°, {longitude:F6}°");
         }
 
+        // PGN 129026 - kurz (COG) a rychlost (SOG) vůči zemi
         static void ProcessCogSogRapidUpdate(byte[] data)
         {
             if (data.Length < 6) return;
 
-            double cog = BitConverter.ToUInt16(data, 0) * 0.0001; // Course Over Ground
-            double sog = BitConverter.ToUInt16(data, 2) * 0.01;   // Speed Over Ground
+            // Struktura: SID (1 B), reference COG (1 B), COG (uint16, 0.0001 rad), SOG (uint16, 0.01 m/s)
+            double cog = BitConverter.ToUInt16(data, 2) * 0.0001 * RadToDeg; // Course Over Ground
+            double sog = BitConverter.ToUInt16(data, 4) * 0.01 * MsToKnots;  // Speed Over Ground
 
             Console.WriteLine($"Kurz: {cog:F2}°");
             Console.WriteLine($"Rychlost: {sog:F2} uzlů");
         }
 
-        static void ProcessGnssPositionData(byte[] data)
-        {
-            if (data.Length < 20) return;
-
-            double latitude = BitConverter.ToInt32(data, 4) * 1e-16 * 180.0 / Math.PI;
-            double longitude = BitConverter.ToInt32(data, 8) * 1e-16 * 180.0 / Math.PI;
-            double altitude = BitConverter.ToSingle(data, 12);
-            byte satellites = data[16];
-
-            Console.WriteLine($"GPS Pozice: {latitude:F6}°, {longitude:F6}°");
-            Console.WriteLine($"Nadmořská výška: {altitude:F1} m");
-            Console.WriteLine($"Satelity: {satellites}");
-        }
-
+        // PGN 129539 - přesnost určení polohy (DOP, menší hodnota = lepší)
         static void ProcessGnssDops(byte[] data)
-        {
-            if (data.Length < 5) return;
-
-            ushort hdop = BitConverter.ToUInt16(data, 0);
-            ushort vdop = BitConverter.ToUInt16(data, 2);
-            byte positionDop = data[4];
-
-            Console.WriteLine($"HDOP: {hdop * 0.01:F2}");
-            Console.WriteLine($"VDOP: {vdop * 0.01:F2}");
-            Console.WriteLine($"PDOP: {positionDop * 0.01:F2}");
-        }
-
-        static void ProcessTimeDate(byte[] data)
         {
             if (data.Length < 8) return;
 
-            uint daysSince1970 = BitConverter.ToUInt32(data, 0);
-            uint secondsSinceMidnight = BitConverter.ToUInt32(data, 4);
+            // Struktura: SID (1 B), režim (1 B), HDOP, VDOP, TDOP (int16, 0.01)
+            short hdop = BitConverter.ToInt16(data, 2);
+            short vdop = BitConverter.ToInt16(data, 4);
+            short tdop = BitConverter.ToInt16(data, 6);
+
+            Console.WriteLine($"HDOP: {hdop * 0.01:F2}");
+            Console.WriteLine($"VDOP: {vdop * 0.01:F2}");
+            Console.WriteLine($"TDOP: {tdop * 0.01:F2}");
+        }
+
+        // PGN 129033 - datum a čas (UTC)
+        static void ProcessTimeDate(byte[] data)
+        {
+            if (data.Length < 6) return;
+
+            // Struktura: datum (uint16, dny od 1.1.1970), čas (uint32, 0.0001 s od půlnoci UTC)
+            ushort daysSince1970 = BitConverter.ToUInt16(data, 0);
+            uint secondsSinceMidnight = BitConverter.ToUInt32(data, 2);
 
             DateTime date = new DateTime(1970, 1, 1).AddDays(daysSince1970)
                 .AddSeconds(secondsSinceMidnight * 0.0001);
 
-            Console.WriteLine($"Datum a čas: {date:dd.MM.yyyy HH:mm:ss.fff}");
+            Console.WriteLine($"Datum a čas: {date:dd.MM.yyyy HH:mm:ss.fff} UTC");
         }
 
+        // PGN 127250 - směr lodi (heading)
         static void ProcessVesselHeading(byte[] data)
         {
-            if (data.Length < 8) return;
+            if (data.Length < 7) return;
 
-            double heading = BitConverter.ToUInt16(data, 0) * 0.0001;
-            double deviation = BitConverter.ToInt16(data, 2) * 0.0001;
-            double variation = BitConverter.ToInt16(data, 4) * 0.0001;
+            // Struktura: SID (1 B), heading (uint16), deviace (int16), variace (int16), všechny v 0.0001 rad
+            double heading = BitConverter.ToUInt16(data, 1) * 0.0001 * RadToDeg;
+            double deviation = BitConverter.ToInt16(data, 3) * 0.0001 * RadToDeg;
+            double variation = BitConverter.ToInt16(data, 5) * 0.0001 * RadToDeg;
 
             Console.WriteLine($"Směr: {heading:F2}°");
             Console.WriteLine($"Deviace: {deviation:F2}°");
             Console.WriteLine($"Variation: {variation:F2}°");
         }
 
+        // PGN 128259 - rychlost lodi vůči vodě a vůči zemi
         static void ProcessSpeed(byte[] data)
         {
-            if (data.Length < 8) return;
+            if (data.Length < 5) return;
 
-            double speedWaterReferenced = BitConverter.ToUInt16(data, 0) * 0.01;
-            double speedGroundReferenced = BitConverter.ToUInt16(data, 2) * 0.01;
+            // Struktura: SID (1 B), rychlost vůči vodě (uint16, 0.01 m/s), rychlost vůči zemi (uint16, 0.01 m/s)
+            double speedWaterReferenced = BitConverter.ToUInt16(data, 1) * 0.01 * MsToKnots;
+            double speedGroundReferenced = BitConverter.ToUInt16(data, 3) * 0.01 * MsToKnots;
 
             Console.WriteLine($"Rychlost vůči vodě: {speedWaterReferenced:F2} uzlů");
             Console.WriteLine($"Rychlost vůči zemi: {speedGroundReferenced:F2} uzlů");
         }
 
+        // PGN 128267 - hloubka vody pod čidlem
         static void ProcessWaterDepth(byte[] data)
         {
-            if (data.Length < 8) return;
+            if (data.Length < 7) return;
 
-            double depth = BitConverter.ToUInt32(data, 0) * 0.01;
-            double offset = BitConverter.ToUInt16(data, 4) * 0.01;
+            // Struktura: SID (1 B), hloubka (uint32, 0.01 m), offset (int16, 0.001 m)
+            double depth = BitConverter.ToUInt32(data, 1) * 0.01;
+            double offset = BitConverter.ToInt16(data, 5) * 0.001;
 
             Console.WriteLine($"Hloubka: {depth:F2} m");
-            Console.WriteLine($"Offset: {offset:F2} m");
+            Console.WriteLine($"Offset: {offset:F3} m");
         }
 
+        // PGN 130306 - údaje o větru
         static void ProcessWindData(byte[] data)
         {
-            if (data.Length < 8) return;
+            if (data.Length < 6) return;
 
-            double windSpeed = BitConverter.ToUInt16(data, 0) * 0.01;
-            double windAngle = BitConverter.ToUInt16(data, 2) * 0.0001;
-            byte reference = data[4];
+            // Struktura: SID (1 B), rychlost (uint16, 0.01 m/s), úhel (uint16, 0.0001 rad), reference (3 bity)
+            double windSpeed = BitConverter.ToUInt16(data, 1) * 0.01 * MsToKnots;
+            double windAngle = BitConverter.ToUInt16(data, 3) * 0.0001 * RadToDeg;
+            byte reference = (byte)(data[5] & 0x07);
 
             string referenceStr = reference switch
             {
-                0 => "Skutečný",
-                1 => "Zdánlivý",
+                0 => "Skutečný (vůči zemi, sever)",
+                1 => "Magnetický",
+                2 => "Zdánlivý",
+                3 => "Skutečný (vůči lodi)",
+                4 => "Skutečný (vůči vodě)",
                 _ => "Neznámý"
             };
 
@@ -364,12 +384,14 @@ namespace Nmea2000Reader
             Console.WriteLine($"Reference: {referenceStr}");
         }
 
-        // Pomocné metody pro výpis
+        // Pomocné metody pro výpis (v aktuální verzi programu se nepoužívají, slouží jako příklad pro další rozšíření)
+        // Převod pole bajtů na hexadecimální řetězec oddělený mezerami
         static string BytesToHex(byte[] bytes)
         {
             return BitConverter.ToString(bytes).Replace("-", " ");
         }
 
+        // Formátování souřadnice se světovou stranou (N/S pro šířku, E/W pro délku)
         static string FormatCoordinate(double value, bool isLatitude)
         {
             char direction = isLatitude ?
@@ -380,3 +402,14 @@ namespace Nmea2000Reader
         }
     }
 }
+/*
+NMEA 2000:
+ Sběrnice založená na CAN (250 kbit/s) pro lodní elektroniku; zprávy se rozlišují čísly PGN (Parameter Group Number)
+ Na rozdíl od textového NMEA 0183 je protokol binární - hodnoty jsou celá čísla s pevným násobitelem (rozlišením)
+Zjednodušení v této ukázce:
+ Vstup ze sériové linky má vymyšlený formát [PGN 3 B][zdroj 1 B][data max. 8 B]
+ Fast-packet zprávy (více než 8 bajtů, např. PGN 129029) se neskládají
+Jednotky v NMEA 2000:
+ Úhly jsou v radiánech (program je převádí na stupně), rychlosti v m/s (převod na uzly)
+ Souřadnice v PGN 129025 jsou v jednotkách 1e-7 stupně
+*/

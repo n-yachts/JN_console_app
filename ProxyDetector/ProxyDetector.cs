@@ -18,7 +18,7 @@ class ProxyDetector  // Hlavní třída programu pro detekci proxy/VPN
 
         // Pole URL adres externích služeb pro detekci proxy/VPN
         string[] detectionServices = {
-            $"http://ip-api.com/json/{target}",  // Služba 1: IP-API.com
+            $"http://ip-api.com/json/{target}?fields=status,message,country,city,isp,org,query,proxy,hosting",  // Služba 1: IP-API.com (zdarma jen přes HTTP; pole proxy a hosting se musí vyžádat parametrem fields)
             $"https://ipinfo.io/{target}/json"   // Služba 2: IPinfo.io
         };
 
@@ -51,8 +51,8 @@ class ProxyDetector  // Hlavní třída programu pro detekci proxy/VPN
 /*
 Kontrola argumentů: Program vyžaduje přesně jeden vstupní parametr (IP adresu nebo hostname). Při nesprávném počtu vypíše návod k použití.
 Detekční služby: Používá dvě veřejné API:
- IP-API.com: Poskytuje geolokační a technické informace o IP adrese
- IPinfo.io: Vrací strukturovaná data o IP adrese včetně detekce VPN/proxy
+ IP-API.com: Poskytuje geolokační a technické informace o IP adrese, včetně příznaků proxy a hosting (vyžádaných parametrem fields)
+ IPinfo.io: Vrací strukturovaná data o IP adrese (země, město, organizace); detekce VPN/proxy je až v placených tarifech
 Zpracování služeb:
  Pro každou službu vytvoří nový HTTP klient
  Asynchronně získá JSON odpověď
@@ -61,5 +61,5 @@ Zpracování služeb:
 Výstup: Program vypisuje nezpracovaná JSON data, která typicky obsahují:
  Zemi a město
  Poskytovatele internetu
- Informace o tom, zda se jedná o hosting/VPN/proxy
+ Informace o tom, zda se jedná o hosting/proxy (jen ve výstupu IP-API.com)
 */

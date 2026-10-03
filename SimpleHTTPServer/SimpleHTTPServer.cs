@@ -31,15 +31,27 @@ class SimpleHTTPServer  // Hlavní třída HTTP serveru
   <body>
     <h1>Ahoj jsem HTTP server napsaný v C#!</h1>
     <p>Čas: {DateTime.Now}</p>
-    <p>URL: {request.Url}</p>
-    <p>Metoda: {request.HttpMethod}</p>
+    <p>URL: {WebUtility.HtmlEncode(request.Url.ToString())}</p>
+    <p>Metoda: {WebUtility.HtmlEncode(request.HttpMethod)}</p>
   </body>
 </html>";
 
-        byte[] buffer = Encoding.UTF8.GetBytes(responseString);  // Převod řetězce na bajty v UTF-8
-        response.ContentLength64 = buffer.Length;  // Nastavení hlavičky Content-Length
-        response.OutputStream.Write(buffer, 0, buffer.Length);  // Zápis dat do výstupního streamu
-        response.Close();  // Odeslání odpovědi a uzavření spojení
+        try
+        {
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);  // Převod řetězce na bajty v UTF-8
+            response.ContentType = "text/html; charset=utf-8";  // Správné kódování češtiny v prohlížeči
+            response.ContentLength64 = buffer.Length;  // Nastavení hlavičky Content-Length
+            response.OutputStream.Write(buffer, 0, buffer.Length);  // Zápis dat do výstupního streamu
+        }
+        catch (Exception ex)
+        {
+            // Např. klient zavřel spojení dříve, než jsme odpověděli
+            Console.WriteLine($"Chyba při odesílání odpovědi: {ex.Message}");
+        }
+        finally
+        {
+            response.Close();  // Odeslání odpovědi a uzavření spojení
+        }
     }
 }
 

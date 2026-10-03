@@ -7,7 +7,7 @@ class SimpleDNSServer    // Definice třídy pro náš jednoduchý DNS nástroj
     static async Task Main()  // Hlavní asynchronní metoda programu (async umožňuje použít await)
     {
         // Výpis informační zprávy do konzole
-        Console.WriteLine("Jednoduchý DNS Server (demonstrační)");
+        Console.WriteLine("Jednoduchý DNS klient (demonstrační)");
 
         // Pole domén, které budeme testovat - můžete přidat vlastní
         string[] testDomains = { "google.com", "seznam.cz", "github.com" };

@@ -1,9 +1,8 @@
-﻿using System;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+﻿using System;  // Základní jmenný prostor pro Console, Exception, Random, BitConverter, Array
+using System.Net;  // IPAddress a IPEndPoint
+using System.Net.Sockets;  // UdpClient a nastavení socketu
 
-class DhcpClient
+class DhcpClientSimulator  // Hlavní třída - odešle DHCP Discover a zobrazí odpověď serveru
 {
     static void Main()
     {
@@ -19,6 +18,11 @@ class DhcpClient
             {
                 // Povolení broadcastu pro odesílání do sítě
                 client.EnableBroadcast = true;
+
+                // DHCP server odpovídá na klientský port 68, na ten se musíme navázat, jinak odpověď nikdy nepřijde.
+                // ReuseAddress umožní sdílet port s případným systémovým DHCP klientem.
+                client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                client.Client.Bind(new IPEndPoint(IPAddress.Any, 68));
 
                 // Nastavení cílového endpointu (DHCP server port 67)
                 IPEndPoint dhcpEndpoint = new IPEndPoint(IPAddress.Broadcast, 67);
@@ -152,13 +156,15 @@ class DhcpClient
 
 /*
 Struktura DHCP paketu:
- První 240 bytů tvoří pevnou hlavičku (BOOTP)
- Magic cookie (0x63825363) odděluje hlavičku od options
+ Prvních 236 bytů tvoří pevnou hlavičku (BOOTP), následují 4 byty magic cookie
+ Magic cookie (0x63825363) odděluje hlavičku od options (options začínají na pozici 240)
  Options obsahují specifické DHCP informace
 DHCP Message Types:
  1 = DISCOVER (klient hledá servery)
  2 = OFFER (server nabízí IP)
+ 3 = REQUEST (klient žádá o nabídnutou IP)
  5 = ACK (potvrzení přidělení)
+ 6 = NAK (zamítnutí), 7 = RELEASE (uvolnění adresy)
 Důležité pozice v hlavičce:
  Byte 16-19: YOUR IP ADDRESS
  Byte 20-23: SERVER IP ADDRESS
