@@ -1,7 +1,10 @@
 ﻿using System;  // Základní jmenný prostor pro základní třídy jako Console, Exception
 using System.ComponentModel;  // Pro třídu Win32Exception pro práci s systémovými chybami
 using System.Net;  // Pro práci s IP adresami (IPAddress)
+using System.IO;  // Čtení /proc/net/arp na Linuxu
 using System.Net.NetworkInformation;  // Pro kontrolu vlastností IP adres (multicast/broadcast)
+using System.Net.Sockets;  // UdpClient pro vyvolání ARP dotazu na Linuxu
+using System.Threading;  // Thread.Sleep při čekání na ARP odpověď
 using System.Runtime.InteropServices;  // Pro práci s nativním kódem pomocí DllImport
 using System.Text;  // Práce s textovými řetězci (v tomto kódu se přímo nepoužívá)
 
@@ -48,6 +51,13 @@ namespace ArpPing  // Definice jmenného prostoru pro organizaci kódu
                     return;
                 }
 
+                // Linux nemá funkci SendARP, MAC se zjišťuje přes ARP cache jádra
+                if (OperatingSystem.IsLinux())
+                {
+                    ResolveOnLinux(target);
+                    return;
+                }
+
                 // Inicializace pole pro MAC adresu (6 bajtů pro Ethernet)
                 byte[] macAddr = new byte[6];
                 uint macLen = (uint)macAddr.Length;  // Převod délky na unsigned integer
@@ -85,6 +95,49 @@ namespace ArpPing  // Definice jmenného prostoru pro organizaci kódu
             }
         }
 
+        // Linux: odeslání jednoho UDP datagramu (port 9 - discard) donutí jádro zjistit MAC adresu přes ARP.
+        // Nejsou potřeba práva root ani ICMP; výsledek se přečte z ARP cache. Funguje jen pro zařízení ve stejné podsíti.
+        private static void ResolveOnLinux(IPAddress target)
+        {
+            string mac = FindInLinuxArpCache(target);
+
+            if (mac == null)
+            {
+                using (UdpClient client = new UdpClient())
+                {
+                    try { client.Send(new byte[1], 1, new IPEndPoint(target, 9)); }
+                    catch (SocketException) { }  // Chyba odeslání neznamená, že ARP neproběhl - zkusíme přečíst cache
+                }
+
+                // ARP odpověď obvykle přijde do několika milisekund; čekáme nejvýše 2 s
+                for (int i = 0; i < 20 && mac == null; i++)
+                {
+                    Thread.Sleep(100);
+                    mac = FindInLinuxArpCache(target);
+                }
+            }
+
+            Console.WriteLine(mac != null
+                ? $"IP: {target} -> MAC: {mac}"
+                : $"Zařízení {target} nebylo nalezeno");
+        }
+
+        // Vyhledá úplný záznam pro danou IP adresu v /proc/net/arp (sloupce: IP, typ HW, příznaky, MAC, maska, rozhraní)
+        private static string FindInLinuxArpCache(IPAddress target)
+        {
+            foreach (string line in File.ReadLines("/proc/net/arp"))
+            {
+                string[] fields = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (fields.Length < 6 || fields[0] != target.ToString())
+                    continue;
+
+                int flags = Convert.ToInt32(fields[2], 16);  // 0x2 = úplný záznam
+                if ((flags & 0x2) != 0 && fields[3] != "00:00:00:00:00:00")
+                    return fields[3].ToLowerInvariant();
+            }
+            return null;
+        }
+
         // Pomocná metoda pro formátování MAC adresy do lidsky čitelné podoby
         private static string FormatMacAddress(byte[] mac)
         {
@@ -95,7 +148,9 @@ namespace ArpPing  // Definice jmenného prostoru pro organizaci kódu
 }
 
 /*
-DllImport pro SendARP:
+Linux:
+ SendARP neexistuje, proto se odešle UDP datagram na cílovou adresu (jádro tím vyvolá ARP) a MAC se přečte z /proc/net/arp
+DllImport pro SendARP (Windows):
  Připojuje se k Windows API funkci pro odesílání ARP požadavků
  ExactSpelling = true zajišťuje přesné hledání funkce v DLL
 Převod IP adresy:

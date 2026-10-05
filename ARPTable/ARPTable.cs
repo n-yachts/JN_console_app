@@ -1,10 +1,11 @@
 ﻿using System;
+using System.IO;  // File.ReadLines pro čtení /proc/net/arp na Linuxu
 using System.Net;  // IPAddress pro převod IP adresy
 using System.Net.NetworkInformation;  // NetworkInterface pro zjištění názvu rozhraní podle indexu
 using System.Runtime.InteropServices;  // DllImport, Marshal, StructLayout - volání nativního Win32 API
 using System.ComponentModel;  // Win32Exception - převod chybového kódu Windows na zprávu
 
-class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému Windows
+class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému (Windows přes Win32 API, Linux ze souboru /proc/net/arp)
 {
     // Import Win32 API funkce pro získání ARP tabulky
     [DllImport("iphlpapi.dll", SetLastError = true)]
@@ -42,7 +43,7 @@ class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému Window
     static void Main()
     {
         // Výpis hlavičky programu
-        Console.WriteLine("ARP Table - Lokální cache (Win32 API)\n");
+        Console.WriteLine(OperatingSystem.IsWindows() ? "ARP Table - Lokální cache (Win32 API)\n" : "ARP Table - Lokální cache (/proc/net/arp)\n");
 
         // Formátování sloupců výpisu
         Console.WriteLine("{0,-15} {1,-17} {2,-8} {3}", "IP Address", "Physical Address", "Type", "Interface");
@@ -50,13 +51,35 @@ class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému Window
 
         try
         {
-            // Zavolání hlavní metody pro zobrazení ARP tabulky
-            DisplayARPTable();
+            // Zavolání metody pro zobrazení ARP tabulky podle operačního systému
+            if (OperatingSystem.IsWindows())
+                DisplayARPTable();
+            else if (OperatingSystem.IsLinux())
+                DisplayLinuxArpTable();
+            else
+                Console.WriteLine("Tento systém není podporován (jen Windows a Linux).");
         }
         catch (Exception ex)
         {
             // Zachycení a výpis případných chyb
             Console.WriteLine($"Chyba: {ex.Message}");
+        }
+    }
+
+    // Linux: jádro vystavuje ARP tabulku jako textový soubor (sloupce: IP, typ HW, příznaky, MAC, maska, rozhraní)
+    static void DisplayLinuxArpTable()
+    {
+        foreach (string line in File.ReadLines("/proc/net/arp"))
+        {
+            string[] fields = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length < 6 || fields[0] == "IP")  // První řádek je záhlaví
+                continue;
+
+            int flags = Convert.ToInt32(fields[2], 16);  // Příznaky ve tvaru 0x2: 0x2 = úplný záznam, 0x4 = trvalý (statický)
+            string type = (flags & 0x4) != 0 ? "static" : (flags & 0x2) != 0 ? "dynamic" : "incomplete";
+            string mac = fields[3].ToUpperInvariant().Replace(':', '-');  // Stejný formát jako ve Windows
+
+            Console.WriteLine($"{fields[0],-15} {mac,-17} {type,-8} {fields[5]}");
         }
     }
 
@@ -171,7 +194,7 @@ class ARPTable  // Hlavní třída programu - výpis ARP tabulky systému Window
 }
 
 /*
-Tento program čte ARP (Address Resolution Protocol) tabulku systému Windows pomocí nativních Win32 API funkcí.
+Tento program čte ARP (Address Resolution Protocol) tabulku systému. Na Windows pomocí nativních Win32 API funkcí, na Linuxu ze souboru /proc/net/arp.
 ARP tabulka mapuje IP adresy na fyzické MAC adresy v lokální síti.
 
 Části programu:

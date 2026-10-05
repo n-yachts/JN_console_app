@@ -33,10 +33,20 @@ namespace NetBIOSNameResolver
 
             Console.WriteLine($"Zpracovávám IP: {ipAddressString}\n");
 
-            // 1. Metoda pomocí nbtstat (jednoduchá)
-            string nbtstatName = await GetNetBIOSNameViaNbtstatAsync(ipAddressString);
+            // Kódové stránky (OEM 852 u nbtstat) jsou v .NET dostupné až po registraci poskytovatele
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            Console.WriteLine($"nbtstat metoda: {(string.IsNullOrEmpty(nbtstatName) ? "Nenalezeno" : nbtstatName)}");
+            // 1. Metoda pomocí nbtstat (jednoduchá)
+            // Program nbtstat existuje jen ve Windows; jinde se přeskočí a použije se přímý UDP dotaz
+            if (OperatingSystem.IsWindows())
+            {
+                string nbtstatName = await GetNetBIOSNameViaNbtstatAsync(ipAddressString);
+                Console.WriteLine($"nbtstat metoda: {(string.IsNullOrEmpty(nbtstatName) ? "Nenalezeno" : nbtstatName)}");
+            }
+            else
+            {
+                Console.WriteLine("nbtstat metoda: není dostupná (jen Windows)");
+            }
 
             // 2. Přímý dotaz Node Status na UDP port 137
             string udpName = GetNetBIOSNameViaUDP(ipAddress);

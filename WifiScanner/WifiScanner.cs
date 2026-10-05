@@ -8,6 +8,9 @@ class WifiScanner  // Hlavní třída programu
 {
     static void Main()  // Hlavní vstupní bod programu
     {
+        // Kódové stránky (např. OEM 852 u netsh) jsou v .NET dostupné až po registraci poskytovatele
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
         // Nastavení kódování konzole na UTF-8
         Console.OutputEncoding = Encoding.UTF8;
         
@@ -15,13 +18,19 @@ class WifiScanner  // Hlavní třída programu
 
         // netsh wlan show networks admina nevyžaduje (na Windows 11 24H2 ale potřebuje zapnuté polohové služby),
         // proto se při chybějících oprávněních jen upozorní a skenování se přesto spustí
-        if (!IsRunningAsAdmin())
+        if (OperatingSystem.IsWindows() && !IsRunningAsAdmin())
         {
             Console.WriteLine("⚠️  Program není spuštěn jako správce. Pokud skenování selže, spusťte jej jako správce");
             Console.WriteLine("    a zkontrolujte, zda jsou zapnuté polohové služby.\n");
         }
 
-        ScanWindowsWifi();  // Spuštění Windows-specifického skenování
+        // Skenování se liší podle systému: Windows používá netsh, Linux nmcli (NetworkManager)
+        if (OperatingSystem.IsWindows())
+            ScanWindowsWifi();
+        else if (OperatingSystem.IsLinux())
+            ScanLinuxWifi();
+        else
+            Console.WriteLine("Tento systém není podporován (jen Windows a Linux).");
     }
 
     // Metoda pro kontrolu administrátorských oprávnění
@@ -130,7 +139,106 @@ class WifiScanner  // Hlavní třída programu
         if (currentNetwork != null)  // Přidání poslední sítě
             networks.Add(currentNetwork);
 
-        // Výpis výsledků
+        PrintNetworks(networks);
+    }
+
+    // Linux: nmcli v "terse" režimu vypisuje pole oddělená dvojtečkou (dvojtečka a zpětné lomítko v hodnotách jsou escapovány zpětným lomítkem)
+    static void ScanLinuxWifi()
+    {
+        try
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = "nmcli",
+                Arguments = "-t -f SSID,SIGNAL,CHAN,SECURITY,BSSID dev wifi list",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+
+            using (Process process = Process.Start(startInfo))
+            {
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    Console.WriteLine($"Chyba: {(string.IsNullOrWhiteSpace(error) ? "nmcli skončilo s kódem " + process.ExitCode : error.Trim())}");
+                    return;
+                }
+
+                PrintNetworks(ParseNmcliOutput(output));
+            }
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Console.WriteLine("Příkaz nmcli nebyl nalezen. Nainstalujte NetworkManager (např. balíček network-manager).");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Chyba při skenování WiFi: {ex.Message}");
+        }
+    }
+
+    static List<WifiNetwork> ParseNmcliOutput(string output)  // Zpracování výstupu z nmcli
+    {
+        List<WifiNetwork> networks = new List<WifiNetwork>();
+
+        foreach (string line in output.Split('\n'))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            List<string> fields = SplitEscaped(line.TrimEnd('\r'));
+            if (fields.Count < 5)
+                continue;
+
+            networks.Add(new WifiNetwork
+            {
+                SSID = fields[0].Length == 0 ? "(skrytá síť)" : fields[0],
+                Signal = fields[1] + "%",
+                Channel = fields[2],
+                AuthType = fields[3].Length == 0 || fields[3] == "--" ? "Open (bez zabezpečení)" : fields[3],
+                BSSID = fields[4]
+            });
+        }
+
+        return networks;
+    }
+
+    // Rozdělí řádek na pole podle neescapovaných dvojteček a odstraní escapování (\: a \\)
+    static List<string> SplitEscaped(string line)
+    {
+        List<string> fields = new List<string>();
+        StringBuilder current = new StringBuilder();
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '\\' && i + 1 < line.Length)
+            {
+                current.Append(line[++i]);  // Escapovaný znak se vezme doslova
+            }
+            else if (c == ':')
+            {
+                fields.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        fields.Add(current.ToString());
+        return fields;
+    }
+
+    static void PrintNetworks(List<WifiNetwork> networks)  // Výpis seznamu sítí
+    {
         Console.WriteLine($"Nalezeno {networks.Count} WiFi sítí:\n");
 
         foreach (var network in networks)  // Cyklus přes všechny nalezené sítě
@@ -162,6 +270,8 @@ class WifiNetwork  // Třída pro reprezentaci WiFi sítě
 }
 
 /*
+Skenování na Linuxu:
+ Spouští příkaz nmcli -t -f SSID,SIGNAL,CHAN,SECURITY,BSSID dev wifi list (vyžaduje NetworkManager, root není potřeba)
 Skenování na Windows:
  Spouští systémový příkaz netsh wlan show networks mode=bssid
  Zachytává a parsuje výstup s informacemi o WiFi sítích

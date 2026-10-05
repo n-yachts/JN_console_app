@@ -1,10 +1,10 @@
 # Síťové diagnostické nástroje a utility
 
-Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro diagnostiku, monitoring a testování sítí. Každý nástroj je samostatný projekt v řešení `JN_console_app.slnx` a spouští se z příkazové řádky.
+Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, Windows a Linux) pro diagnostiku, monitoring a testování sítí. Každý nástroj je samostatný projekt v řešení `JN_console_app.slnx` a spouští se z příkazové řádky.
 
 **Konvence zápisu parametrů:** `<povinný>`, `[volitelný]`. Programy bez parametrů se spouští jen názvem. Programy označené ⚠️ vyžadují spuštění jako správce.
 
-**Externí závislosti:** `CDP_LLDP_Scanner` potřebuje nainstalovaný Npcap (balíček SharpPcap). `LdapBrowser` používá `System.DirectoryServices.Protocols`. `Nmea0183Reader` a `Nmea2000Reader` používají NuGet balíček `System.IO.Ports`. Ostatní projekty používají jen základní knihovny .NET.
+**Externí závislosti:** `CDP_LLDP_Scanner` potřebuje nainstalovaný Npcap (Windows) nebo libpcap (Linux), viz kapitola Linux. `LdapBrowser` používá `System.DirectoryServices.Protocols`. `Nmea0183Reader` a `Nmea2000Reader` používají NuGet balíček `System.IO.Ports`. Ostatní projekty používají jen základní knihovny .NET.
 
 ---
 
@@ -13,8 +13,8 @@ Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro d
 | Program | Co dělá | Parametry |
 |---|---|---|
 | **AdvancedPing** | ICMP ping: posílá Echo Request (32 B, bez fragmentace), vypisuje dobu odezvy, TTL a statistiku ztrát. | `<adresa> [timeout_ms=1000] [počet=4]`<br>př. `AdvancedPing 192.168.1.1 500 10` |
-| **ArpPing** | Zjistí MAC adresu zařízení v lokální síti přes ARP (`SendARP`); funguje i při blokovaném ICMP. Jen IPv4, ne multicast/broadcast. | `<IPv4 adresa>` |
-| **ARPTable** | Vypíše ARP cache systému (IP, MAC, typ dynamický/statický, rozhraní) přes Win32 API. | – |
+| **ArpPing** | Zjistí MAC adresu zařízení v lokální síti přes ARP (Windows `SendARP`, Linux ARP cache jádra); funguje i při blokovaném ICMP. Jen IPv4, ne multicast/broadcast. | `<IPv4 adresa>` |
+| **ARPTable** | Vypíše ARP cache systému (IP, MAC, typ dynamický/statický, rozhraní) přes Win32 API (Windows) nebo `/proc/net/arp` (Linux). | – |
 | **TraceRoute** | Trasování cesty paketů ke cíli pomocí rostoucího TTL (max. 30 skoků, timeout 1 s). | `<hostname/IP>` |
 | **CustomTraceroute** | Další implementace traceroute (max. 30 skoků, timeout 1 s) přes `Ping` s nastaveným TTL a zakázanou fragmentací. | `<cíl>` |
 | **LatencyMonitor** | Průběžně pinguje více cílů najednou (timeout 1 s), ukončení Ctrl+C. | `<host1> [host2 ...]` |
@@ -22,7 +22,7 @@ Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro d
 | **PortScanner** | TCP scan nejběžnějších portů (21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995) – otevřený / zavřený / filtrovaný. | `<hostname/IP>` |
 | **ServiceFingerprinter** | Identifikuje službu na portu: u HTTP (80, 443, 8080) pošle `GET /` a vypíše odpověď (u 443 přes TLS), u ostatních čeká 3 s na banner. | `<host> <port>` |
 | **HostName** | Reverzní DNS – zjistí jméno hostitele z IPv4 adresy. | `<IPv4 adresa>` |
-| **NetBIOSNameResolver** | Zjistí NetBIOS jméno z IPv4 adresy – nejprve `nbtstat`, poté přímý dotaz NBSTAT na UDP 137. Cíl musí mít zapnutý NetBIOS over TCP/IP. | `<IPv4 adresa>` |
+| **NetBIOSNameResolver** | Zjistí NetBIOS jméno z IPv4 adresy – nejprve `nbtstat` (jen Windows), poté přímý dotaz NBSTAT na UDP 137. Cíl musí mít zapnutý NetBIOS over TCP/IP. | `<IPv4 adresa>` |
 | **MACResolver** | Zjistí MAC adresu k IP/hostname – umí **jen adresy lokálních rozhraní** (ne vzdálených zařízení). | `<IP/hostname>` |
 | **DNSResolver** | Přeloží jméno na IP adresy (A/AAAA) přes systémový resolver. | `<hostname>` |
 | **WhoisClient** | WHOIS dotaz (TCP 43) na `whois.iana.org`; vrací údaje o TLD a řádek `refer:` s koncovým registrem (dotaz na něj se neprovádí). | `<doména>` |
@@ -36,9 +36,9 @@ Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro d
 | **InterfaceMonitor** | Každé 2 s vypisuje stav, rychlost a přijatá/odeslaná data všech rozhraní (Ctrl+C ukončí). | – |
 | **BandwidthMonitor** | Měří propustnost každého aktivního (ne-loopback) rozhraní v reálném čase (každou 1 s), Ctrl+C ukončí. | – |
 | **TCPConnectionMonitor** | Vypíše aktivní TCP spojení (lokální/vzdálený koncový bod a stav). Nezobrazuje procesy. | – |
-| **WifiScanner** | Skenuje WiFi sítě přes `netsh wlan show networks mode=bssid` – SSID, signál, autentizace, kanál, BSSID. Může vyžadovat správce a zapnuté služby určování polohy. | – |
+| **WifiScanner** | Skenuje WiFi sítě (Windows `netsh wlan show networks mode=bssid`, Linux `nmcli`) – SSID, signál, autentizace, kanál, BSSID. Na Windows může vyžadovat správce a zapnuté služby určování polohy. | – |
 | **CDP_LLDP_Scanner** | Pasivně zachytává CDP a LLDP pakety (SharpPcap + Npcap) a zobrazí informace o sousedním přepínači (hostname, port, platforma, capabilities, chassis ID…). Adaptér se vybírá interaktivně, ENTER ukončí. | – (interaktivní výběr adaptéru) |
-| **SimpleSniffer** ⚠️ | Zachytává IP pakety (ICMP/TCP/UDP…) na raw socketu v promiskuitním režimu a vypisuje zdroj, cíl, protokol a velikost. Jen Windows, jen IPv4. | – |
+| **SimpleSniffer** ⚠️ | Zachytává IP pakety (ICMP/TCP/UDP…) na raw socketu (Windows, promiskuitní režim) nebo packet socketu (Linux) a vypisuje zdroj, cíl, protokol a velikost. Jen IPv4; vyžaduje správce / root. | – |
 
 ## Výpočty a konfigurace
 
@@ -75,7 +75,7 @@ Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro d
 | **LdapBrowser** | Připojí se k LDAP (Basic bind, protokol v3; port 636 = LDAPS), vyhledá všechny objekty v podstromu (stránkování po 500). Na jiném portu než 636 posílá heslo nešifrovaně. | `<server> <port> <username> <password> [searchBase]` |
 | **RadiusClient** | Odešle RADIUS Access-Request (UDP 1812) a ověří Response Authenticator; vypíše úspěch/zamítnutí. Jméno max. 253 B, heslo max. 128 B. | `<server> <secret> <username> <password>` |
 | **SnmpWalker** | SNMP GET-NEXT walk od zadaného OID (UDP 161). | `<host> <community> <startOID> <timeout_ms>`<br>př. `SnmpWalker 192.168.1.1 public 1.3.6.1.2.1.1 5000` |
-| **DhcpClientSimulator** | Odešle DHCP Discover (broadcast, port 67, naslouchá na 68; timeout 5 s) a vypíše typ odpovědi, nabízenou IP a server. | – |
+| **DhcpClientSimulator** | Odešle DHCP Discover (broadcast, port 67, naslouchá na 68, na Linuxu vyžaduje root; timeout 5 s) a vypíše typ odpovědi, nabízenou IP a server. | – |
 | **ModbusScanner** | Připojí se na Modbus TCP (port 502) a otestuje funkce 1–4 (čtení); vypíše, které zařízení podporuje (Illegal Function = nepodporováno), a dekóduje holding registry. | `<host>`<br>př. `ModbusScanner 192.168.1.100` |
 | **SipAnalyzer** | Naslouchá na UDP portu a dekóduje příchozí SIP zprávy (požadavky/odpovědi, hlavičky). | `<lokální_port>`<br>př. `SipAnalyzer 5060` |
 | **MulticastListener** | Připojí se k multicast skupině na všech vhodných rozhraních a vypisuje příchozí datagramy. | `<multicast_skupina> <port>`<br>př. `MulticastListener 224.0.0.1 5000` |
@@ -112,13 +112,32 @@ Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro d
 
 ## Sestavení
 
-Všechny projekty cílí na `net8.0` i `net10.0` (společné nastavení je v `Directory.Build.props`). Je potřeba .NET SDK 10 (umí sestavit oba cíle).
-
-Spustitelné soubory (jeden `.exe` na program, bez doprovodných `.dll`) vzniknou publikací pro každý cíl zvlášť:
+Všechny projekty cílí na `net8.0` i `net10.0` (společné nastavení je v `Directory.Build.props`). Je potřeba .NET SDK 10 (umí sestavit oba cíle). Zdrojový kód je společný pro Windows i Linux, cílový systém se volí až při publikaci parametrem `-r`:
 
 ```
-dotnet publish JN_console_app.slnx -c Release -f net8.0
-dotnet publish JN_console_app.slnx -c Release -f net10.0
+dotnet publish JN_console_app.slnx -c Release -f net10.0 -r win-x64
+dotnet publish JN_console_app.slnx -c Release -f net10.0 -r linux-x64
 ```
 
-Výstup je v `Release\net8.0\` a `Release\net10.0\` (všechny programy v jedné složce, např. `Release\net10.0\PortScanner.exe example.com`). Soubory jsou závislé na nainstalovaném běhovém prostředí (framework-dependent, win-x64), takže na cílovém počítači musí být .NET 8 resp. .NET 10 Runtime.
+Bez parametru `-r` se použije `win-x64`. Pro .NET 8 použijte `-f net8.0`; pro 64bitový ARM Linux (např. Raspberry Pi) `-r linux-arm64`. Linuxové programy lze sestavit i na Windows.
+
+Výstup je v `Release\<systém>\<net8.0|net10.0>\`, např. `Release\win-x64\net10.0\PortScanner.exe` nebo `Release/linux-x64/net10.0/PortScanner`. Každý program je jeden samostatný soubor (bez doprovodných `.dll`), který vyžaduje nainstalovaný .NET Runtime příslušné verze. Na Linuxu je po stažení nebo zkopírování z Windows nutné nastavit právo ke spuštění: `chmod +x ./PortScanner`.
+
+## Linux
+
+Většina programů funguje na Linuxu beze změny. Programy, které používají systémově závislé funkce, mají samostatnou větev pro Linux:
+
+| Program | Na Linuxu |
+|---|---|
+| **ARPTable** | čte `/proc/net/arp` |
+| **ArpPing** | odešle UDP datagram, kterým jádro vyvolá ARP, a MAC přečte z `/proc/net/arp`; funguje jen pro zařízení ve stejné podsíti, root není potřeba |
+| **WifiScanner** | používá `nmcli` (NetworkManager), root není potřeba |
+| **SimpleSniffer** | packet socket (AF_PACKET), zachytává na všech rozhraních; vyžaduje `root` (`sudo ./SimpleSniffer`) |
+| **NetBIOSNameResolver** | `nbtstat` neexistuje, použije se jen přímý UDP dotaz a DNS |
+| **CDP_LLDP_Scanner** | místo Npcap potřebuje balíček `libpcap` (např. `libpcap0.8`) a práva `root` |
+| **LdapBrowser** | potřebuje knihovnu `libldap` (např. `libldap-2.5-0`) |
+| **Nmea0183Reader**, **Nmea2000Reader** | sériové porty se jmenují `/dev/ttyUSB0`, `/dev/ttyS0`…; uživatel musí být ve skupině `dialout` |
+
+Další upozornění: porty pod 1024 (SyslogServer 514, SnmpTrapReceiver 162, TelnetServer 23, DNSBlackhole 53, DhcpClientSimulator 68) vyžadují na Linuxu `root` nebo `setcap 'cap_net_bind_service=+ep'`. Ping a traceroute používají ICMP; pokud systém neumožňuje ICMP bez oprávnění, použije .NET systémový příkaz `ping` (balíček `iputils-ping`).
+
+Linuxová verze byla ověřena v prostředí WSL2 (x64) u programů ARPTable, ArpPing, WifiScanner (s ukázkovým výstupem `nmcli`), SimpleSniffer, NetBIOSNameResolver, AdvancedPing, SyslogServer, PortScanner a dalších jednoduchých nástrojů. CDP_LLDP_Scanner, LdapBrowser a čtečky NMEA na Linuxu otestovány nebyly; ověřeno také nebylo na fyzických distribucích a jiných architekturách.

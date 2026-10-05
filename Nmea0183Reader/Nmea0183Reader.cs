@@ -58,7 +58,7 @@ namespace Nmea0183Reader  // Jmenný prostor projektu
                 Console.WriteLine($" - {port}");
             }
 
-            Console.Write("Zadejte název portu (např. COM3): ");
+            Console.Write("Zadejte název portu (např. COM3, na Linuxu /dev/ttyUSB0): ");
             _serialPort.PortName = Console.ReadLine();
 
             // NMEA 0183 používá standardně rychlost 4800 baud (některé přijímače 9600 a více)

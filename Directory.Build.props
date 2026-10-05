@@ -8,10 +8,12 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);SYSLIB0014;CA1416</NoWarn>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Cílový systém se volí při publikaci: dotnet publish -r linux-x64 (výchozí je win-x64) -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
-    <PublishDir>$(MSBuildThisFileDirectory)Release\$(TargetFramework)\</PublishDir>
+    <PublishDir>$(MSBuildThisFileDirectory)Release\$(RuntimeIdentifier)\$(TargetFramework)\</PublishDir>
   </PropertyGroup>
 </Project>
