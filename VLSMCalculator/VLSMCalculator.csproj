@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VLSMCalculator</RootNamespace>
+    <AssemblyName>VLSMCalculator</AssemblyName>
+  </PropertyGroup>
+</Project>

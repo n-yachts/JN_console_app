@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>BinaryConverter</RootNamespace>
+    <AssemblyName>BinaryConverter</AssemblyName>
+  </PropertyGroup>
+</Project>

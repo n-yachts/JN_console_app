@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>SnmpTrapReceiver</RootNamespace>
+    <AssemblyName>SnmpTrapReceiver</AssemblyName>
+  </PropertyGroup>
+</Project>

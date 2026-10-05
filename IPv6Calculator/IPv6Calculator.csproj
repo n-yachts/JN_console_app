@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>IPv6Calculator</RootNamespace>
+    <AssemblyName>IPv6Calculator</AssemblyName>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>SyslogServer</RootNamespace>
+    <AssemblyName>SyslogServer</AssemblyName>
+  </PropertyGroup>
+</Project>
