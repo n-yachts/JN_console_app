@@ -1,134 +1,117 @@
 # Síťové diagnostické nástroje a utility
 
-Kolekce síťových nástrojů pro diagnostiku, monitoring a správu sítí.
+Kolekce malých konzolových aplikací (C#, .NET 8 a .NET 10, jen Windows) pro diagnostiku, monitoring a testování sítí. Každý nástroj je samostatný projekt v řešení `JN_console_app.slnx` a spouští se z příkazové řádky.
 
-## **Síťové diagnostické nástroje**
+**Konvence zápisu parametrů:** `<povinný>`, `[volitelný]`. Programy bez parametrů se spouští jen názvem. Programy označené ⚠️ vyžadují spuštění jako správce.
 
-### **AdvancedTelnetClient**
-Pokročilý Telnet klient s podporou více protokolů, barevného výstupu a skriptování. Umožňuje připojení k různým síťovým službám (SSH, Telnet, RAW TCP) s pokročilými funkcemi jako logování, automatizace příkazů a podpora různých kódování.
+**Externí závislosti:** `CDP_LLDP_Scanner` potřebuje nainstalovaný Npcap (balíček SharpPcap). `LdapBrowser` používá `System.DirectoryServices.Protocols`. `Nmea0183Reader` a `Nmea2000Reader` používají NuGet balíček `System.IO.Ports`. Ostatní projekty používají jen základní knihovny .NET.
 
-### **ArpPing**
-Odesílá ARP (Address Resolution Protocol) požadavky pro zjištění dostupnosti zařízení v lokální síti. Na rozdíl od ICMP pingu funguje i když je ICMP blokované, protože pracuje na linkové vrstvě.
+---
 
-### **ARPTable**
-Zobrazuje obsah ARP cache systému - tabulku mapování IP adres na MAC adresy v lokální síti. Užitečné pro diagnostiku síťových konfliktů a analýzu topologie sítě.
+## Diagnostika sítě (ICMP, ARP, směrování)
 
-### **BandwidthMonitor**
-Monitoruje využití síťové šířky pásma v reálném čase. Zobrazuje přenosové rychlosti na jednotlivých síťových rozhraních, celkový přenos a historické statistiky.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **AdvancedPing** | ICMP ping: posílá Echo Request (32 B, bez fragmentace), vypisuje dobu odezvy, TTL a statistiku ztrát. | `<adresa> [timeout_ms=1000] [počet=4]`<br>př. `AdvancedPing 192.168.1.1 500 10` |
+| **ArpPing** | Zjistí MAC adresu zařízení v lokální síti přes ARP (`SendARP`); funguje i při blokovaném ICMP. Jen IPv4, ne multicast/broadcast. | `<IPv4 adresa>` |
+| **ARPTable** | Vypíše ARP cache systému (IP, MAC, typ dynamický/statický, rozhraní) přes Win32 API. | – |
+| **TraceRoute** | Trasování cesty paketů ke cíli pomocí rostoucího TTL (max. 30 skoků, timeout 1 s). | `<hostname/IP>` |
+| **CustomTraceroute** | Další implementace traceroute (max. 30 skoků, timeout 1 s) přes `Ping` s nastaveným TTL a zakázanou fragmentací. | `<cíl>` |
+| **LatencyMonitor** | Průběžně pinguje více cílů najednou (timeout 1 s), ukončení Ctrl+C. | `<host1> [host2 ...]` |
+| **TopologyMapper** | Pingem prochází všechny hosty v podsíti (po dávkách po 50) a vypíše aktivní zařízení. Prefix /1–/30. | `<síť/CIDR>`<br>př. `TopologyMapper 192.168.1.0/24` |
+| **PortScanner** | TCP scan nejběžnějších portů (21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995) – otevřený / zavřený / filtrovaný. | `<hostname/IP>` |
+| **ServiceFingerprinter** | Identifikuje službu na portu: u HTTP (80, 443, 8080) pošle `GET /` a vypíše odpověď (u 443 přes TLS), u ostatních čeká 3 s na banner. | `<host> <port>` |
+| **HostName** | Reverzní DNS – zjistí jméno hostitele z IPv4 adresy. | `<IPv4 adresa>` |
+| **NetBIOSNameResolver** | Zjistí NetBIOS jméno z IPv4 adresy – nejprve `nbtstat`, poté přímý dotaz NBSTAT na UDP 137. Cíl musí mít zapnutý NetBIOS over TCP/IP. | `<IPv4 adresa>` |
+| **MACResolver** | Zjistí MAC adresu k IP/hostname – umí **jen adresy lokálních rozhraní** (ne vzdálených zařízení). | `<IP/hostname>` |
+| **DNSResolver** | Přeloží jméno na IP adresy (A/AAAA) přes systémový resolver. | `<hostname>` |
+| **WhoisClient** | WHOIS dotaz (TCP 43) na `whois.iana.org`; vrací údaje o TLD a řádek `refer:` s koncovým registrem (dotaz na něj se neprovádí). | `<doména>` |
 
-### **AdvancedPing**
-Vlastní implementace ICMP ping nástroje. Odesílá ICMP Echo Request pakety a měří dobu odpovědi, ztrátovost paketů a TTL (Time to Live).
+## Informace o systému a rozhraních
 
-### **CustomTraceroute**
-Sleduje cestu paketů od zdroje k cíli přes jednotlivé směrovače. Identifikuje síťové úzkosti a problémy se směrováním.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **NetworkInfo** | Hostname a seznam rozhraní s typem, popisem, IPv4 adresou a maskou. | – |
+| **NetworkDocumenter** | Textový report: rozhraní (MAC, rychlost, IPv4/maska), výchozí brány, DNS servery a počty aktivních TCP/UDP spojení a listenerů. | – |
+| **InterfaceMonitor** | Každé 2 s vypisuje stav, rychlost a přijatá/odeslaná data všech rozhraní (Ctrl+C ukončí). | – |
+| **BandwidthMonitor** | Měří propustnost každého aktivního (ne-loopback) rozhraní v reálném čase (každou 1 s), Ctrl+C ukončí. | – |
+| **TCPConnectionMonitor** | Vypíše aktivní TCP spojení (lokální/vzdálený koncový bod a stav). Nezobrazuje procesy. | – |
+| **WifiScanner** | Skenuje WiFi sítě přes `netsh wlan show networks mode=bssid` – SSID, signál, autentizace, kanál, BSSID. Může vyžadovat správce a zapnuté služby určování polohy. | – |
+| **CDP_LLDP_Scanner** | Pasivně zachytává CDP a LLDP pakety (SharpPcap + Npcap) a zobrazí informace o sousedním přepínači (hostname, port, platforma, capabilities, chassis ID…). Adaptér se vybírá interaktivně, ENTER ukončí. | – (interaktivní výběr adaptéru) |
+| **SimpleSniffer** ⚠️ | Zachytává IP pakety (ICMP/TCP/UDP…) na raw socketu v promiskuitním režimu a vypisuje zdroj, cíl, protokol a velikost. Jen Windows, jen IPv4. | – |
 
-### **IPCalculator / SubnetCalculator**
-Vypočítává síťové parametry z IP adresy a masky - síťovou adresu, broadcast, rozsah použitelných IP, počet hostů a další subnetting informace.
+## Výpočty a konfigurace
 
-### **LatencyMonitor**
-Průběžně monitoruje latenci (odezvu) k více síťovým cílům současně. Detekuje výpadky a kolísání odezvy v čase.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **IPCalculator** | Z IP a masky spočítá síťovou adresu, broadcast, rozsah použitelných adres a počet hostů. | `<IP/maska>` (maska 0–32)<br>př. `IPCalculator 192.168.1.0/24` |
+| **SubnetCalculator** | Spočítá novou masku (prefix) podsítě a skutečnou kapacitu pro požadovaný počet hostů. | `<IP/maska> <počet hostů>`<br>př. `SubnetCalculator 192.168.1.0/24 50` |
+| **WakeOnLAN** | Odešle Wake-on-LAN magic packet (UDP broadcast). MAC lze zadat s `:` i `-`. | `<MAC adresa>` |
+| **NtpClient** | Porovná lokální čas se servery pool.ntp.org, time.google.com, time.windows.com, time.nist.gov, tik/tak.cesnet.cz a vypíše rozdíl v ms. Čas **nenastavuje**. | – |
 
-### **PortScanner**
-Skenuje rozsah portů na cílovém zařízení a identifikuje otevřené porty a běžící služby. Užitečné pro bezpečnostní audity a inventarizaci služeb.
+## Web, TLS a certifikáty
 
-### **TCPConnectionMonitor**
-Zobrazuje aktivní TCP spojení na lokálním počítači - lokální/vzdálené adresy, porty, stav spojení a procesy.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **HTTPChecker** | GET požadavek; vypíše stavový kód a hlavičku `Server`. | `<URL>` |
+| **HeaderAnalyzer** | GET požadavek a výpis všech hlaviček odpovědi (hlavičky odpovědi i obsahu). Doplní `http://`, pokud chybí schéma. | `<URL>` |
+| **SSLChecker** | Zobrazí údaje TLS certifikátu: subjekt, vydavatel, platnost od/do a SHA1 otisk. Výchozí port 443. | `<hostname[:port]>` |
+| **CertificateExpiryChecker** | Zjistí platnost certifikátu a zbývající dny; varuje při expiraci < 30 dní nebo prošlém certifikátu. Výchozí port 443. | `<hostname[:port]>` |
+| **ProxyDetector** | Dotáže se služeb ip-api.com a ipinfo.io na IP/hostname a vypíše surové JSON (příznaky proxy/hosting; detekce VPN/proxy u ipinfo jen v placených tarifech). | `<IP/hostname>` |
+| **SimpleWebCrawler** | Rekurzivně prochází odkazy v rámci domény startovní stránky (max. hloubka 3, max. 50 stránek). | `<start_url>`<br>př. `SimpleWebCrawler https://example.com` |
 
-### **TopologyMapper**
-Automaticky mapuje síťovou topologii skenováním IP rozsahů a identifikací aktivních zařízení. Vytváří přehled o struktuře sítě.
+## Klienti protokolů
 
-## **Protokolový klienti a servery**
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **TelnetClient** | Telnet klient se zpracováním IAC sekvencí. Ukončení: `QUIT`, Esc nebo Ctrl+C. | `<hostname> <port>` |
+| **AdvancedTelnetClient** | Telnet klient s negociací voleb (ECHO, SGA), barevným výstupem a příkazy `QUIT` a `CLEAR`; ukončení Esc/Ctrl+C. | `<hostname> <port>`<br>př. `AdvancedTelnetClient localhost 23` |
+| **SimpleFTPClient** | Přihlásí se na FTP server a vypíše obsah kořenového adresáře (pouze `LIST`, bez uploadu/downloadu). | `<server> <username> <password>` |
+| **LdapBrowser** | Připojí se k LDAP (Basic bind, protokol v3; port 636 = LDAPS), vyhledá všechny objekty v podstromu (stránkování po 500). Na jiném portu než 636 posílá heslo nešifrovaně. | `<server> <port> <username> <password> [searchBase]` |
+| **RadiusClient** | Odešle RADIUS Access-Request (UDP 1812) a ověří Response Authenticator; vypíše úspěch/zamítnutí. Jméno max. 253 B, heslo max. 128 B. | `<server> <secret> <username> <password>` |
+| **SnmpWalker** | SNMP GET-NEXT walk od zadaného OID (UDP 161). | `<host> <community> <startOID> <timeout_ms>`<br>př. `SnmpWalker 192.168.1.1 public 1.3.6.1.2.1.1 5000` |
+| **DhcpClientSimulator** | Odešle DHCP Discover (broadcast, port 67, naslouchá na 68; timeout 5 s) a vypíše typ odpovědi, nabízenou IP a server. | – |
+| **ModbusScanner** | Připojí se na Modbus TCP (port 502) a otestuje funkce 1–4 (čtení); vypíše, které zařízení podporuje (Illegal Function = nepodporováno), a dekóduje holding registry. | `<host>`<br>př. `ModbusScanner 192.168.1.100` |
+| **SipAnalyzer** | Naslouchá na UDP portu a dekóduje příchozí SIP zprávy (požadavky/odpovědi, hlavičky). | `<lokální_port>`<br>př. `SipAnalyzer 5060` |
+| **MulticastListener** | Připojí se k multicast skupině na všech vhodných rozhraních a vypisuje příchozí datagramy. | `<multicast_skupina> <port>`<br>př. `MulticastListener 224.0.0.1 5000` |
 
-### **ChatClient / ChatServer**
-Jednoduchý chatovací systém pomocí TCP socketů. Server přijímá připojení více klientů a přeposílá zprávy mezi nimi.
+## Servery
 
-### **DHCP Client Simulator**
-Simuluje DHCP klienta - odesílá DHCP Discover, Request a Renew zprávy pro testování DHCP serverů a analýzu síťové konfigurace.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **ChatServer** | TCP chat server – přijímá klienty a přeposílá zprávy. Pevný port **8080**. | – |
+| **ChatClient** | Klient k ChatServeru – posílá a přijímá zprávy. | `<server> <port>` |
+| **TelnetServer** | Telnet server napodobující CLI síťového zařízení (hostname `Router`): `show running-config`, `show version`, `show interfaces`, `show arp`, `enable`, `disable`, `configure terminal`, `hostname <jméno>`, `exit`, `help`/`?`. Ukončení Ctrl+C. | `[port=23]` |
+| **SimpleHTTPServer** | HTTP server na portu **8080**; na každý požadavek vrací HTML stránku s URL a metodou. | – |
+| **SimpleFileServer** | TCP server na portu **8080** sdílející adresář `./shared` (vytvoří se automaticky), vypisuje seznam souborů. Bez autentizace. | – |
+| **DNSBlackhole** ⚠️ | DNS server na UDP 53; domény `malware.com`, `ads.example.com`, `tracker.com` (i subdomény) vrací jako `0.0.0.0`, ostatní překládá systémovým DNS. Seznam je v kódu. | – |
+| **SimpleDNSServer** | Pouze demonstrace – přeloží několik pevných domén (google.com, seznam.cz, github.com); skutečný DNS server to **není**. | – |
 
-### **DNSBlackhole**
-Jednoduchý DNS server, který blokuje přístup na škodlivé nebo nežádoucí domény vracením falešných odpovědí.
+## Měření a generování provozu
 
-### **DNSResolver / SimpleDNSServer**
-Překládá doménová jména na IP adresy a naopak. SimpleDNSServer je základní implementace DNS serveru.
+| Program | Co dělá | Parametry |
+|---|---|---|
+| **ThroughputTester** | Odešle po TCP náhodná data a změří propustnost v Mbps. Na druhé straně musí běžet server, který data přijme (např. discard). | `<server> <port> <velikost_MB>` (1–2047) |
+| **TrafficGenerator** | Odesílá UDP pakety s textem `Test packet` (jeden každých 100 ms) na cíl. | `<cíl> <port> <počet paketů>` |
 
-### **HTTPChecker / HeaderAnalyzer**
-HTTPChecker testuje dostupnost webových služeb, HeaderAnalyzer detailně analyzuje HTTP hlavičky odpovědí serverů.
+## Námořní protokoly (sériová linka)
 
-### **LdapBrowser**
-Prohlížeč LDAP (Lightweight Directory Access Protocol) adresářů - umožňuje procházení a dotazování na directory služby jako Active Directory.
+| Program | Co dělá | Vstup |
+|---|---|---|
+| **Nmea0183Reader** | Čte NMEA 0183 věty ze sériového portu a dekóduje GGA, RMC, GSA, GSV, VTG. Konec klávesou `q`. | Interaktivně: název portu (např. `COM3`), baud rate (výchozí 4800; 8N1) |
+| **Nmea2000Reader** | Čte zjednodušený rámec NMEA 2000 `[PGN 3 B little-endian][zdroj 1 B][data max. 8 B]` a dekóduje PGN 129025, 129026, 129539, 129033, 127250, 128259, 128267, 130306. Fast-packet PGN (např. 129029) nepodporuje. Konec klávesou `q`. | Interaktivně: port (číslo ze seznamu nebo název), baud rate (výchozí 115200) |
 
-### **MulticastListener**
-Připojuje se k multicast skupinám a přijímá multicast datagramy. Užitečné pro testování multicast aplikací a síťového vysílání.
+---
 
-### **RadiusClient**
-Klient pro RADIUS (Remote Authentication Dial-In User Service) protokol - testuje autentizaci proti RADIUS serverům.
+## Sestavení
 
-### **ServiceFingerprinter**
-Identifikuje síťové služby na základě jejich bannerů a odpovědí. Rozpoznává typ a verzi služby běžící na daném portu.
+Všechny projekty cílí na `net8.0` i `net10.0` (společné nastavení je v `Directory.Build.props`). Je potřeba .NET SDK 10 (umí sestavit oba cíle).
 
-### **SimpleFTPClient**
-Základní FTP klient pro přenos souborů - podporuje základní FTP operace jako upload, download a listování adresářů.
+Spustitelné soubory (jeden `.exe` na program, bez doprovodných `.dll`) vzniknou publikací pro každý cíl zvlášť:
 
-### **SimpleHTTPServer**
-Jednoduchý HTTP server schopný obsluhovat webové požadavky a servírovat statický obsah.
+```
+dotnet publish JN_console_app.slnx -c Release -f net8.0
+dotnet publish JN_console_app.slnx -c Release -f net10.0
+```
 
-### **SimpleSniffer**
-Základní síťový sniffer, který zachytává a analyzuje síťový provoz na zvoleném rozhraní.
-
-### **SipAnalyzer**
-Analyzuje SIP (Session Initiation Protocol) provoz používaný pro VoIP komunikaci - zachytává a dekóduje SIP zprávy.
-
-### **SnmpWalker**
-Prochází SNMP (Simple Network Management Protocol) MIB stromy zařízení - čte a zobrazuje hodnoty z říditelných objektů.
-
-### **TelnetClient / TelnetServer**
-Kompletní Telnet klient a server s podporou základních Telnet příkazů a řídicích sekvencí.
-
-### **WhoisClient**
-Dotazuje se WHOIS databází na informace o doménových jménech a IP adresách - vlastníci, kontakty, datum registrace.
-
-## **Monitorovací a bezpečnostní nástroje**
-
-### **BlockchainMonitor**
-Monitoruje stav blockchainových uzlů (Bitcoin, Ethereum) - kontroluje synchronizaci, počet připojení a stav sítě.
-
-### **CertificateExpiryChecker**
-Kontroluje platnost SSL/TLS certifikátů na vzdálených serverech a varuje před blížící se expirací.
-
-### **ContainerNetworkInspector**
-Analyzuje síťovou konfiguraci Docker kontejnerů - sítě, IP adresy, propojení a síťové bridge.
-
-### **InterfaceMonitor**
-Průběžně monitoruje stav a statistiku síťových rozhraní - přenosové rychlosti, chyby, stav spojení.
-
-### **MACResolver**
-Překládá MAC adresy na výrobce zařízení pomocí OUI (Organizationally Unique Identifier) databáze.
-
-### **NetworkDocumenter / NetworkInfo**
-Generuje kompletní dokumentaci o síťové konfiguraci systému - rozhraní, IP adresy, routing, DNS servery, síťové statistiky.
-
-### **ProxyDetector**
-Detekuje použití proxy serverů a analyzuje jejich konfiguraci. Identifikuje transparentní proxy a NAT.
-
-### **SSLChecker**
-Detailně analyzuje SSL/TLS certifikáty - vydavatele, platnost, podpisové algoritmy a slabiny konfigurace.
-
-### **ThroughputTester / TrafficGenerator**
-Měří síťovou propustnost odesíláním testovacích dat a měřením přenosové rychlosti. TrafficGenerator vytváří zátěžový provoz.
-
-### **WakeOnLAN**
-Odesílá Wake-on-LAN "magic packet" pro vzdálené probuzení zařízení z režimu spánku.
-
-### **WifiScanner**
-Skenuje dostupné WiFi sítě a zobrazuje jejich parametry - SSID, sílu signálu, kanál, šifrování a BSSID.
-
-## **Speciální nástroje**
-
-### **NtpClient**
-Synchronizuje čas s NTP (Network Time Protocol) servery a měří přesnost časové synchronizace.
-
-### **SimpleFileServer**
-Jednoduchý souborový server pro sdílení souborů přes síť s základní autentizací a přístupovými právy.
-
-### **SimpleWebCrawler**
-Základní webový crawler, který prochází webové stránky a extrahuje odkazy - užitečné pro mapování webových aplikací.
+Výstup je v `Release\net8.0\` a `Release\net10.0\` (všechny programy v jedné složce, např. `Release\net10.0\PortScanner.exe example.com`). Soubory jsou závislé na nainstalovaném běhovém prostředí (framework-dependent, win-x64), takže na cílovém počítači musí být .NET 8 resp. .NET 10 Runtime.

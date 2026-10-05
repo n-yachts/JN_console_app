@@ -33,8 +33,8 @@ class IPCalculator  // Hlavní třída programu
 
         // Výpočet masky sítě pomocí bitového posunu (posun o 32 bitů by se v C# neprovedl, proto zvláštní případ /0)
         uint mask = maskLength == 0 ? 0u : 0xFFFFFFFFu << (32 - maskLength);  // Vytvoření bitové masky
-        // Konverze na IPAddress (Reverse je potřeba kvůli odlišnému pořadí bajtů)
-        IPAddress subnetMask = new IPAddress(BitConverter.GetBytes(mask).Reverse().ToArray());
+        // Konverze na IPAddress (bajty se skládají od nejvyššího, aby výsledek nezávisel na pořadí bajtů platformy)
+        IPAddress subnetMask = new IPAddress(new[] { (byte)(mask >> 24), (byte)(mask >> 16), (byte)(mask >> 8), (byte)mask });
 
         // Výpočet adresy sítě
         byte[] ipBytes = ipAddress.GetAddressBytes();  // Získání bajtů IP adresy
